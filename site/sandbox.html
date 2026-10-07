@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft Sandbox</title>
+<link rel="stylesheet" href="raft.css">
+<style>
+  header { padding: 14px 20px 6px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  header p { margin: 4px 0 0; color: var(--muted); max-width: 900px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 16px; padding: 12px 20px 20px; align-items: flex-start; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .left { flex: 0 1 560px; min-width: 300px; }
+  .right { flex: 1 1 520px; min-width: 300px; display: flex; flex-direction: column; gap: 16px; }
+  canvas.cluster { width: 100%; aspect-ratio: 1 / 1; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  label { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  input[type=range] { width: 110px; }
+  h2 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+  .hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+  .legend { margin-top: 8px; }
+  .consistency { margin-top: 8px; font-size: 13px; }
+  .ok { color: var(--leader); } .warn { color: var(--candidate); }
+  .events { height: 190px; }
+  details { margin-top: 4px; color: var(--muted); font-size: 13px; }
+  details summary { cursor: pointer; color: var(--text); }
+  details li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Raft sandbox: 5-server cluster</h1>
+  <p>Click a server to take it <b>offline</b> (click again to restart it). Shift-click a server to force its election timeout.
+     Watch elections, heartbeats and log replication keep the replicated state machines consistent.</p>
+</header>
+
+<div class="wrap">
+  <div class="panel left">
+    <canvas class="cluster" id="cv"></canvas>
+    <div class="controls">
+      <button class="primary" id="btnReq">Client request</button>
+      <label><input type="checkbox" id="autoReq"> auto requests</label>
+      <button id="btnPart">Partition S1,S2</button>
+      <label><input type="checkbox" id="lossy"> lossy network (20%)</label>
+    </div>
+    <div class="controls">
+      <button id="btnPause">Pause</button>
+      <button id="btnReset">Reset</button>
+      <label>speed <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1"><span id="speedVal">1.0×</span></label>
+    </div>
+    <div class="legend">
+      <span style="--c:var(--follower)">follower</span>
+      <span style="--c:var(--candidate)">candidate</span>
+      <span style="--c:var(--leader)">leader</span>
+      <span style="--c:var(--offline)">offline</span>
+      <span style="--c:var(--rv)">RequestVote</span>
+      <span style="--c:var(--ae)">AppendEntries</span>
+      <span class="hollow" style="--c:var(--ae)">reply (hollow)</span>
+      <span style="--c:var(--client)">client cmd</span>
+    </div>
+    <div class="hint">The ring around a follower/candidate is its randomized election timer. Small dots under a candidate are votes received.
+      Numbers on AppendEntries messages are the count of log entries carried (none = heartbeat). A red ✗ is a lost message.</div>
+  </div>
+
+  <div class="right">
+    <div class="panel">
+      <h2>Replicated logs</h2>
+      <div class="logs" id="logs"></div>
+      <div class="hint">Each cell is a log entry: the command and the <b>term</b> it was created in.
+        Solid = committed on that server, faded/dashed = not yet known to be committed. The yellow underline is the leader's <code>nextIndex</code> for that follower.</div>
+    </div>
+    <div class="panel">
+      <h2>State machines (key → value)</h2>
+      <div class="sms" id="sms"></div>
+      <div class="consistency" id="consistency"></div>
+    </div>
+    <div class="panel">
+      <h2>Client was told “OK” for</h2>
+      <div class="receipts" id="receipts"></div>
+    </div>
+    <div class="panel">
+      <h2>Events</h2>
+      <div class="events" id="events"></div>
+      <details>
+        <summary>Things to try</summary>
+        <ul>
+          <li>Take the <b>leader</b> offline: followers' timers run out, one becomes candidate, wins a majority and becomes the new leader in a higher term.</li>
+          <li>Take <b>two</b> servers offline: the remaining 3 are still a majority, so requests still commit.</li>
+          <li>Take <b>three</b> offline: the leader can append entries but can never commit them. Bring one back and they commit.</li>
+          <li>Partition S1,S2 while S1 leads, send requests, then heal: S1's uncommitted entries are replaced.</li>
+          <li>Turn on the lossy network with auto requests: logs still converge.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script src="raft-sim.js"></script>
+<script src="raft-view.js"></script>
+<script>
+"use strict";
+const V = window.RaftView;
+const $ = id => document.getElementById(id);
+let sim, view, paused = false, speed = 1, lastAutoReq = 0;
+
+function reset() {
+  sim = new Raft.Sim({ seed: (Math.random() * 1e9) | 0, cfg: { lossRate: $("lossy").checked ? 0.2 : 0 } });
+  sim.log("Cluster started: all servers are followers in term 0");
+  if (view) view.sim = sim; else view = new V.ClusterView($("cv"), sim);
+  lastAutoReq = 0;
+  renderPanels();
+}
+
+function renderPanels() {
+  V.renderLogs(sim, $("logs"));
+  V.renderStateMachines(sim, $("sms"));
+  V.renderReceipts(sim, $("receipts"));
+  V.renderEvents(sim, $("events"));
+  V.clearFlashes(sim);
+  const online = sim.servers.filter(s => !s.crashed).length;
+  $("consistency").innerHTML = (sim.consistent()
+    ? '<span class="ok">✓ All applied entries agree across servers (State Machine Safety holds).</span>'
+    : '<span class="warn">✗ Applied entries diverge!</span>') +
+    ` &nbsp; <span style="color:var(--muted)">${online}/${sim.n} online: ${online >= sim.majority ? "majority available" : `<span class="warn">no majority (need ${sim.majority}), nothing new can commit</span>`}</span>`;
+  $("btnPart").textContent = sim.partition ? "Heal network" : "Partition S1,S2";
+  $("btnPart").classList.toggle("on", !!sim.partition);
+}
+
+let last = performance.now(), lastPanel = 0, lastSize = "";
+function frame(t) {
+  const dt = Math.min(100, t - last); last = t;
+  if (!paused) {
+    sim.advance(dt * speed);
+    if ($("autoReq").checked && sim.now - lastAutoReq > 3500) { lastAutoReq = sim.now; sim.clientRequest(); }
+  }
+  const r = $("cv").getBoundingClientRect(), size = r.width + "x" + r.height;
+  if (size !== lastSize) { view.fit(); lastSize = size; }
+  view.draw({ paused });
+  if (t - lastPanel > 120) { renderPanels(); lastPanel = t; }
+  requestAnimationFrame(frame);
+}
+
+$("cv").addEventListener("click", ev => {
+  const r = $("cv").getBoundingClientRect();
+  const id = view.serverAt(ev.clientX - r.left, ev.clientY - r.top);
+  if (id == null) return;
+  ev.shiftKey ? sim.forceTimeout(id) : sim.toggleCrash(id);
+  renderPanels();
+});
+$("btnReq").onclick = () => sim.clientRequest();
+$("btnPart").onclick = () => { sim.partition ? sim.heal() : sim.setPartition([0, 1]); renderPanels(); };
+$("lossy").onchange = () => { sim.cfg.lossRate = $("lossy").checked ? 0.2 : 0; };
+$("btnPause").onclick = e => { paused = !paused; e.target.textContent = paused ? "Resume" : "Pause"; };
+$("btnReset").onclick = reset;
+$("speed").oninput = () => { speed = +$("speed").value; $("speedVal").textContent = speed.toFixed(1) + "×"; };
+
+if (/embed/.test(location.search)) document.querySelector("header").style.display = "none";
+reset();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

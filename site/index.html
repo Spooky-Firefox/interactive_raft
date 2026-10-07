@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft, one failure at a time</title>
+<link rel="stylesheet" href="raft.css">
+<style>
+  html { font-size: clamp(12px, 1.6vh, 26px); }
+  body { height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; font-size: 1rem; }
+
+  header.top { padding: 1.4rem 2.5vw .6rem; display: flex; align-items: baseline; gap: 1.2rem; }
+  .kicker { text-transform: uppercase; letter-spacing: .12em; font-size: .95rem; font-weight: 700; color: var(--ae); white-space: nowrap; }
+  .kicker.problem { color: var(--bad); } .kicker.fix { color: var(--leader); } .kicker.bonus-problem { color: var(--bad); } .kicker.bonus-fix { color: var(--leader); }
+  header.top h1 { margin: 0; font-size: 2.4rem; font-weight: 650; letter-spacing: -.01em; }
+
+  main.stage { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, .85fr); gap: 1.4vw; padding: .4rem 2.5vw .6rem; min-height: 0; }
+  main.stage.nodata { grid-template-columns: minmax(0, 1.25fr) minmax(0, 0) minmax(0, 1fr); }
+  main.stage.nodata .data { display: none; }
+  .viz { display: flex; flex-direction: column; min-height: 0; gap: .5rem; }
+  .viz canvas { flex: 1; width: 100%; min-height: 0; }
+  .vizbar { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .9rem; }
+  .vizbar .spacer { flex: 1; }
+  .vizbar .speed { color: var(--muted); }
+
+  .data { display: flex; flex-direction: column; gap: .8rem; min-height: 0; overflow: auto; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; }
+  .card h3 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  .card.events-card { flex: 1; display: flex; flex-direction: column; min-height: 8rem; }
+  .card.events-card .events { flex: 1; font-size: .95rem; }
+  .hidden { display: none !important; }
+
+  .talk { display: flex; flex-direction: column; gap: 1rem; min-height: 0; }
+  ul.bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .9rem; font-size: 1.45rem; line-height: 1.35; }
+  ul.bullets li { padding-left: 1.1em; position: relative; opacity: 0; transform: translateY(6px); transition: opacity .35s, transform .35s; }
+  ul.bullets li.shown { opacity: 1; transform: none; }
+  ul.bullets li.shown.past { opacity: .55; }
+  ul.bullets li::before { content: "›"; position: absolute; left: 0; color: var(--ae); font-weight: 700; }
+  ul.bullets code { font-size: .9em; }
+  .rules { margin-top: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem; overflow: auto; }
+  .rules h3 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  .rules ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: .25rem; font-size: .92rem; }
+  .rules li.fresh { color: var(--leader); animation: ruleIn .8s ease-out; }
+  @keyframes ruleIn { from { background: rgba(63,178,127,.35); } to { background: transparent; } }
+
+  footer { display: flex; align-items: center; gap: 1rem; padding: .5rem 2.5vw .8rem; color: var(--muted); font-size: .8rem; }
+  .progress { display: flex; gap: .35rem; flex: 1; }
+  .progress span { height: .45rem; flex: 1; border-radius: 3px; background: var(--border); cursor: pointer; }
+  .progress span.optional { background: repeating-linear-gradient(45deg, var(--border) 0 4px, transparent 4px 8px); }
+  .progress span.done { background: #3d6593; }
+  .progress span.current { background: var(--ae); }
+
+  /* hero & recap layouts */
+  .hero { display: none; grid-column: 1 / -1; align-self: center; justify-self: center; text-align: center; max-width: 70rem; }
+  .hero h2 { font-size: 4.4rem; margin: 0 0 1rem; letter-spacing: -.02em; }
+  .hero p { font-size: 1.8rem; color: var(--muted); margin: 0; }
+  .hero .start { margin-top: 3rem; font-size: 1.1rem; color: var(--muted); }
+  .recap { display: none; grid-column: 1 / -1; min-height: 0; overflow: auto; align-self: center; }
+  .recap .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
+  .recap .group { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem 1.6rem; }
+  .recap .group h3 { margin: 0 0 .9rem; font-size: 1.9rem; }
+  .recap .group:nth-child(1) h3 { color: var(--candidate); }
+  .recap .group:nth-child(2) h3 { color: var(--ae); }
+  .recap .group:nth-child(3) h3 { color: var(--leader); }
+  .recap .group ul { margin: 0; padding-left: 1.2em; font-size: 1.45rem; line-height: 1.35; display: flex; flex-direction: column; gap: .8rem; }
+  .recap .skipped { margin-top: 2.2rem; font-size: 1.35rem; color: var(--muted); }
+  .recap .skipped b { color: var(--text); }
+  iframe.sandbox { display: none; grid-column: 1 / -1; width: 100%; height: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+
+  body.layout-hero .viz, body.layout-hero .data, body.layout-hero .talk,
+  body.layout-recap .viz, body.layout-recap .data, body.layout-recap .talk,
+  body.layout-sandbox .viz, body.layout-sandbox .data, body.layout-sandbox .talk { display: none; }
+  body.layout-hero .hero { display: block; }
+  body.layout-hero header.top { visibility: hidden; }
+  body.layout-recap .recap { display: block; }
+  body.layout-sandbox iframe.sandbox { display: block; }
+  body.layout-hero main.stage, body.layout-recap main.stage, body.layout-sandbox main.stage { grid-template-columns: 1fr; }
+
+  .notes {
+    position: fixed; left: 2.5vw; right: 2.5vw; bottom: 3rem; background: rgba(23,30,38,.97); border: 1px solid var(--candidate);
+    border-radius: 10px; padding: .8rem 1rem; font-size: 1.05rem; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .notes b { color: var(--candidate); }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="kicker" id="kicker"></span>
+  <h1 id="title"></h1>
+</header>
+
+<main class="stage" id="stage">
+  <section class="viz">
+    <canvas class="cluster" id="cv"></canvas>
+    <div class="vizbar">
+      <button class="primary" id="btnWrite" title="C">Client write</button>
+      <button id="btnPart">Partition</button>
+      <span class="spacer"></span>
+      <button id="btnReplay" title="R">↺ Replay</button>
+      <button id="btnPause" title="P">❚❚</button>
+      <span class="speed" id="speed">1.0×</span>
+    </div>
+  </section>
+
+  <section class="data">
+    <div class="card" id="cardLogs"><h3>Logs</h3><div class="logs" id="logs"></div></div>
+    <div class="card" id="cardSm"><h3>State machines</h3><div class="sms" id="sms"></div></div>
+    <div class="card" id="cardReceipts"><h3>Client was told “OK” for</h3><div class="receipts" id="receipts"></div></div>
+    <div class="card events-card" id="cardEvents"><h3>Events</h3><div class="events" id="events"></div></div>
+  </section>
+
+  <aside class="talk">
+    <ul class="bullets" id="bullets"></ul>
+    <div class="rules"><h3>Rules so far</h3><ol id="rules"></ol></div>
+  </aside>
+
+  <div class="hero" id="hero"></div>
+  <div class="recap" id="recap"></div>
+  <iframe class="sandbox" id="sandbox" title="Raft sandbox"></iframe>
+</main>
+
+<footer>
+  <div class="progress" id="progress"></div>
+  <span>← → navigate · R replay · P pause · +/− speed · C write · N notes · click server = crash/restart, shift-click = timeout</span>
+</footer>
+<div class="notes hidden" id="notes"></div>
+
+<script src="raft-sim.js"></script>
+<script src="raft-view.js"></script>
+<script src="slides.js"></script>
+<script src="deck.js"></script>
+</body>
+</html>
