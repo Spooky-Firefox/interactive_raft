@@ -119,6 +119,30 @@
     </div>
     <div class="hint">The ring around a follower/candidate is its randomized election timer. Small dots under a candidate are votes received.
       Numbers on AppendEntries messages are the count of log entries carried (none = heartbeat).</div>
+    <details>
+      <summary>AppendEntries and catching up a server</summary>
+      <p class="hint">The <b>number</b> inside a blue AppendEntries dot is how many log entries that message carries,
+        at most 5 per message. A small dot with no number carries no entries: it is a <b>heartbeat</b>, which tells
+        followers the leader is alive and passes on the leader's commit index. Every AppendEntries also carries
+        <code>prevIndex</code>/<code>prevTerm</code>, the index and term of the entry just before the new ones.
+        The follower accepts the message only if its own log has an entry there with that same term.</p>
+      <p class="hint"><b>How a server is brought up to speed after being offline:</b></p>
+      <ol class="hint">
+        <li>On restart it keeps its persisted log, term and vote, but it has forgotten its commit index and state machine.
+          It starts as a follower and waits.</li>
+        <li>The leader keeps a <code>nextIndex</code> for each follower: its guess for the next entry to send (the leader row shows <code>next/match</code>).
+          It sends AppendEntries starting from there.</li>
+        <li>If the follower's log is missing the <code>prevIndex</code> entry, or holds it with a different term, it
+          <b>rejects</b> the message (red hollow reply). The leader lowers <code>nextIndex</code> by one and retries right away.
+          This repeats until the leader reaches the last entry both logs agree on.</li>
+        <li>From that point the follower accepts. Any conflicting entries after it are <b>truncated</b>, and the leader's
+          entries are appended. The leader sends batches of up to 5 entries back to back until the follower has every entry.</li>
+        <li>Each reply updates <code>matchIndex</code>. The <code>leaderCommit</code> field lets the follower advance its own
+          commit index and replay the committed entries into its state machine, rebuilding the key/value store.</li>
+      </ol>
+      <p class="hint">Try it: take a server offline, send a burst of client requests, then bring it back. You will
+        see a few rejections, then numbered dots streaming the missing entries.</p>
+    </details>
   </div>
 
   <div class="right">
