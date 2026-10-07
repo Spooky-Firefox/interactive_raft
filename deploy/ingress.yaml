@@ -1,0 +1,19 @@
+# k3s ships Traefik as its ingress controller.
+# Change the host to a name that resolves to your k3s node(s).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: interactive-raft
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: raft.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: interactive-raft
+                port:
+                  name: http

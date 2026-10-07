@@ -1,0 +1,23 @@
+# Apply once to register the app with ArgoCD:
+#   kubectl apply -n argocd -f argocd/application.yaml
+# After that ArgoCD syncs every push to main automatically.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: interactive-raft
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Spooky-Firefox/interactive_raft.git
+    targetRevision: main
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: interactive-raft
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,19 @@
+# Root kustomization: ArgoCD points at the repo root (path ".").
+# It lives here (not in deploy/) because kustomize can only read files
+# inside its own directory, and the ConfigMap is generated from index.html.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: interactive-raft
+labels:
+  - pairs:
+      app.kubernetes.io/name: interactive-raft
+    includeSelectors: true
+resources:
+  - deploy/deployment.yaml
+  - deploy/service.yaml
+  - deploy/ingress.yaml
+configMapGenerator:
+  # Name gets a content hash suffix, so editing index.html rolls the Deployment.
+  - name: interactive-raft-html
+    files:
+      - index.html

@@ -28,3 +28,20 @@ Open `index.html` in any modern browser — no build step or dependencies.
 - **Client request** sends a random `key=value` command to the current leader;
   enable **auto requests** to generate a steady stream.
 - Pause, reset and change simulation speed with the controls.
+
+## Deploying to k3s with ArgoCD
+
+The page is served by nginx (`nginx-unprivileged`) from a ConfigMap that
+kustomize generates from `index.html`, so there is no image to build or registry
+to push to. Every push to `main` changes the ConfigMap's hash and ArgoCD rolls
+the Deployment.
+
+1. Edit the host in `deploy/ingress.yaml` (k3s's bundled Traefik serves it).
+2. If the repo is private, add it under ArgoCD → Settings → Repositories.
+3. Register the app once:
+
+   ```sh
+   kubectl apply -n argocd -f argocd/application.yaml
+   ```
+
+Preview the rendered manifests with `kubectl kustomize .`.
