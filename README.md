@@ -36,7 +36,7 @@ kustomize generates from `index.html`, so there is no image to build or registry
 to push to. Every push to `main` changes the ConfigMap's hash and ArgoCD rolls
 the Deployment.
 
-1. Edit the host in `deploy/ingress.yaml` (k3s's bundled Traefik serves it).
+1. The site is served at https://raft.ronstad.se (host in `deploy/ingress.yaml`; Traefik + cert-manager).
 2. If the repo is private, add it under ArgoCD → Settings → Repositories.
 3. Register the app once:
 

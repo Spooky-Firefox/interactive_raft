@@ -1,13 +1,14 @@
-# k3s ships Traefik as its ingress controller.
-# Change the host to a name that resolves to your k3s node(s).
+# k3s ships Traefik as its ingress controller; cert-manager issues the TLS cert.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: interactive-raft
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: traefik
   rules:
-    - host: raft.example.com
+    - host: raft.ronstad.se
       http:
         paths:
           - path: /
@@ -17,3 +18,7 @@ spec:
                 name: interactive-raft
                 port:
                   name: http
+  tls:
+    - hosts:
+        - raft.ronstad.se
+      secretName: interactive-raft-tls
