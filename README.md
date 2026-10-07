@@ -3,7 +3,8 @@
 A talk about the Raft consensus algorithm (see `raft.pdf`, Ongaro & Ousterhout),
 given as an interactive website instead of slides, plus a free-play sandbox.
 
-Open `site/index.html` (the presentation) or `site/sandbox.html` in a browser.
+Live at https://raft.ronstad.se (presentation) and https://raft.ronstad.se/sandbox.html.
+Locally, open `site/index.html` or `site/sandbox.html` in a browser.
 There is no build step and no dependencies.
 
 ## The presentation
@@ -59,7 +60,7 @@ kustomize generates from the files in `site/`, so there is no image to build or
 registry to push to. Every push to `main` changes the ConfigMap's hash and ArgoCD rolls
 the Deployment.
 
-1. Edit the host in `deploy/ingress.yaml` (k3s's bundled Traefik serves it).
+1. The site is served at https://raft.ronstad.se (host in `deploy/ingress.yaml`; Traefik + cert-manager).
 2. If the repo is private, add it under ArgoCD → Settings → Repositories.
 3. Register the app once:
 
