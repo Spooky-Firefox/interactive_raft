@@ -9,6 +9,9 @@ const URL = 'file://' + path.resolve(__dirname, '../site/index.html');
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await p.goto(URL);
   await p.waitForTimeout(300);
+  // Slides are looked up by title so inserting slides doesn't break the test.
+  const titles = await p.evaluate(() => TALK.SLIDES.map(s => s.title));
+  const T = t => { const i = titles.indexOf(t); if (i < 0) throw new Error('no slide: ' + t); return i; };
   // gaps[k] = simulated ms to run after revealing fragment k
   const run = (i, gaps) => p.evaluate(([i, gaps]) => {
     deck.paused = true; deck.enter(i);
@@ -27,27 +30,27 @@ const URL = 'file://' + path.resolve(__dirname, '../site/index.html');
   const results = [];
   const check = (name, cond, r) => { results.push([cond ? 'PASS' : 'FAIL', name]); if (!cond) console.log('  detail', name, JSON.stringify(r)); };
   let r;
-  r = await run(1, [0, 8000, 0, 0]); check('1 goal: states agree', r.agree && r.logs[0].split(' ').length === 3, r);
-  r = await run(2, [6000, 0, 0, 0]); check('2 multi-writer: states diverge', !r.agree, r);
-  r = await run(3, [0, 0, 0, 0]); check('3 majority slide runs', true, r);
-  r = await run(4, [0, 0, 0, 40000]); check('4 fixed timeouts: no leader, terms climb', r.leader === null && Math.min(...r.terms) >= 5, r);
-  r = await run(5, [10000]); check('5 random timeouts: leader elected', r.leader !== null, r);
+  r = await run(T('A replicated, deterministic log'), [0, 8000, 0, 0]); check('1 goal: states agree', r.agree && r.logs[0].split(' ').length === 3, r);
+  r = await run(T('Everyone accepts writes'), [6000, 0, 0, 0]); check('2 multi-writer: states diverge', !r.agree, r);
+  r = await run(T('Why a majority?'), [0, 0, 0, 0]); check('3 majority slide runs', true, r);
+  r = await run(T('Electing a leader, naively'), [0, 0, 0, 40000]); check('4 fixed timeouts: no leader, terms climb', r.leader === null && Math.min(...r.terms) >= 5, r);
+  r = await run(T('Randomized election timeouts'), [10000]); check('5 random timeouts: leader elected', r.leader !== null, r);
   const first = r.leader;
   r = await p.evaluate(() => { deck.next(); deck.next(); deck.next(); deck.sim.advance(12000); const l = deck.sim.leader(); return { leader: l && l.id + 1, term: l && l.term }; });
   check('5 crash leader: new leader in higher term', r.leader && r.leader !== first && r.term > 1, r);
-  r = await run(6, [8000, 0, 0, 0]); check('6 fire-and-forget: logs/state diverge', !r.agree && new Set(r.logs).size > 1, r);
-  r = await run(7, [14000, 0, 0, 0]); check('7 acks+retry: logs converge', r.agree && new Set(r.logs).size === 1, r);
-  r = await run(8, [0, 3000, 7000, 3000, 6000]); check('8 apply early: acknowledged write lost', r.lost >= 1, r);
-  r = await run(9, [0, 3000, 9000, 6000]); check('9 commit: no acknowledged write lost', r.lost === 0 && r.acked >= 1 && r.consistent, r);
-  r = await run(10, [0, 0, 1000, 5000, 6000]); check('10 catch-up: S4 caught up via backoff', r.logs[3] === r.logs[0] && r.rejects >= 3 && r.agree, r);
-  r = await run(11, [0, 3000, 0, 6000]); check('11 no restriction: committed entry overwritten', r.violations > 0 && r.lost > 0, r);
-  r = await run(12, [0, 3000, 8000, 10000, 0]); check('12 restriction: no committed loss', r.violations === 0 && r.lost === 0 && r.leader && ![4,5].includes(r.leader) && r.consistent, r);
-  r = await run(13, [500, 2000, 9000, 8000]); check('13 partition: old leader steps down, one leader, no loss', r.leaders.length === 1 && r.lost === 0 && new Set(r.logs).size === 1, r);
-  r = await run(14, [0, 8000, 3000, 8000]); check('14 fig8 without rule: committed entry overwritten', r.violations > 0, r);
-  r = await run(15, [0, 8000, 5000, 15000]); check('15 fig8 with rule: safe', r.violations === 0 && r.leader !== 5 && r.consistent, r);
+  r = await run(T('Replicating the log, fire-and-forget'), [8000, 0, 0, 0]); check('6 fire-and-forget: logs/state diverge', !r.agree && new Set(r.logs).size > 1, r);
+  r = await run(T('Say where it goes, acknowledge, retry'), [14000, 0, 0, 0]); check('7 acks+retry: logs converge', r.agree && new Set(r.logs).size === 1, r);
+  r = await run(T('Applying too early'), [0, 3000, 7000, 3000, 6000]); check('8 apply early: acknowledged write lost', r.lost >= 1, r);
+  r = await run(T('Commit before you apply'), [0, 3000, 9000, 6000]); check('9 commit: no acknowledged write lost', r.lost === 0 && r.acked >= 1 && r.consistent, r);
+  r = await run(T('Catching up a returning server'), [0, 0, 1000, 5000, 6000]); check('10 catch-up: S4 caught up via backoff', r.logs[3] === r.logs[0] && r.rejects >= 3 && r.agree, r);
+  r = await run(T('The wrong server wins'), [0, 3000, 0, 6000]); check('11 no restriction: committed entry overwritten', r.violations > 0 && r.lost > 0, r);
+  r = await run(T('Vote only for up-to-date logs'), [0, 3000, 8000, 10000, 0]); check('12 restriction: no committed loss', r.violations === 0 && r.lost === 0 && r.leader && ![4,5].includes(r.leader) && r.consistent, r);
+  r = await run(T('Two leaders? Network partitions'), [500, 2000, 9000, 8000]); check('13 partition: old leader steps down, one leader, no loss', r.leaders.length === 1 && r.lost === 0 && new Set(r.logs).size === 1, r);
+  r = await run(T('The subtle one (Figure 8)'), [0, 8000, 3000, 8000]); check('14 fig8 without rule: committed entry overwritten', r.violations > 0, r);
+  r = await run(T('Only count replicas for the current term'), [0, 8000, 5000, 15000]); check('15 fig8 with rule: safe', r.violations === 0 && r.leader !== 5 && r.consistent, r);
 
   // determinism: same slide twice gives same logs
-  const a = await run(13, [500, 2000, 9000, 8000]), c = await run(13, [500, 2000, 9000, 8000]);
+  const a = await run(T('Two leaders? Network partitions'), [500, 2000, 9000, 8000]), c = await run(T('Two leaders? Network partitions'), [500, 2000, 9000, 8000]);
   check('seeded replay is identical', JSON.stringify(a) === JSON.stringify(c), [a, c]);
 
   for (const x of results) console.log(x.join('  '));

@@ -13,9 +13,31 @@
   .kicker { text-transform: uppercase; letter-spacing: .12em; font-size: .95rem; font-weight: 700; color: var(--ae); white-space: nowrap; }
   .kicker.problem { color: var(--bad); } .kicker.fix { color: var(--leader); } .kicker.bonus-problem { color: var(--bad); } .kicker.bonus-fix { color: var(--leader); }
   header.top h1 { margin: 0; font-size: 2.4rem; font-weight: 650; letter-spacing: -.01em; }
+  header.top .section { margin-left: auto; font-size: .9rem; color: var(--muted); white-space: nowrap; letter-spacing: .04em; }
+  .kicker.introduction, .kicker.methods { color: var(--ae); } .kicker.results { color: var(--leader); }
+  .kicker.discussion, .kicker.our-reflections { color: var(--candidate); }
+
+  /* paper layout: big bullets + a figure */
+  .paper { display: none; grid-column: 1 / -1; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 3vw; align-items: center; min-height: 0; padding: 0 1vw; }
+  .paper ul.bullets { font-size: 1.75rem; gap: 1.3rem; }
+  .paper .figure { min-height: 0; }
+  .paper .quote { font-size: 1.5rem; line-height: 1.4; color: var(--text); border-left: 4px solid var(--candidate); padding: .4rem 0 .4rem 1.2rem; margin: 0; }
+  .paper .quote footer { display: block; padding: .8rem 0 0; font-size: 1rem; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.2rem; }
+  .tile .num { font-size: 2.8rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .tile .lbl { color: var(--muted); font-size: 1.05rem; margin-top: .3rem; line-height: 1.3; }
+  .tile.wide { grid-column: 1 / -1; }
+  .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .pillar { background: var(--panel); border: 1px solid var(--border); border-top: 4px solid var(--c); border-radius: 10px; padding: 1rem; font-size: 1.15rem; line-height: 1.35; }
+  .pillar b { display: block; font-size: 1.35rem; margin-bottom: .4rem; color: var(--c); }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart text { font-family: system-ui, sans-serif; }
+  .figcap { color: var(--muted); font-size: 1rem; margin-top: .6rem; }
+  .src { color: var(--muted); font-size: .95rem; margin-top: 1rem; }
 
   main.stage { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, .85fr); gap: 1.4vw; padding: .4rem 2.5vw .6rem; min-height: 0; }
-  main.stage.nodata { grid-template-columns: minmax(0, 1.25fr) minmax(0, 0) minmax(0, 1fr); }
+  main.stage.nodata { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
   main.stage.nodata .data { display: none; }
   .viz { display: flex; flex-direction: column; min-height: 0; gap: .5rem; }
   .viz canvas { flex: 1; width: 100%; min-height: 0; }
@@ -35,6 +57,8 @@
   ul.bullets li { padding-left: 1.1em; position: relative; opacity: 0; transform: translateY(6px); transition: opacity .35s, transform .35s; }
   ul.bullets li.shown { opacity: 1; transform: none; }
   ul.bullets li.shown.past { opacity: .55; }
+  body.export ul.bullets li.shown.past { opacity: 1; }
+  body.export .hero .start { visibility: hidden; }
   ul.bullets li::before { content: "›"; position: absolute; left: 0; color: var(--ae); font-weight: 700; }
   ul.bullets code { font-size: .9em; }
   .rules { margin-top: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem; overflow: auto; }
@@ -54,6 +78,8 @@
   .hero { display: none; grid-column: 1 / -1; align-self: center; justify-self: center; text-align: center; max-width: 70rem; }
   .hero h2 { font-size: 4.4rem; margin: 0 0 1rem; letter-spacing: -.02em; }
   .hero p { font-size: 1.8rem; color: var(--muted); margin: 0; }
+  .hero .meta { margin-top: 2.2rem; font-size: 1.2rem; color: var(--muted); line-height: 1.5; }
+  .hero .meta i { color: var(--text); }
   .hero .start { margin-top: 3rem; font-size: 1.1rem; color: var(--muted); }
   .recap { display: none; grid-column: 1 / -1; min-height: 0; overflow: auto; align-self: center; }
   .recap .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; }
@@ -67,10 +93,13 @@
   .recap .skipped b { color: var(--text); }
   iframe.sandbox { display: none; grid-column: 1 / -1; width: 100%; height: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
 
+  body.layout-text .viz, body.layout-text .data, body.layout-text .talk,
   body.layout-hero .viz, body.layout-hero .data, body.layout-hero .talk,
   body.layout-recap .viz, body.layout-recap .data, body.layout-recap .talk,
   body.layout-sandbox .viz, body.layout-sandbox .data, body.layout-sandbox .talk { display: none; }
   body.layout-hero .hero { display: block; }
+  body.layout-text .paper { display: grid; }
+  body.layout-text main.stage { grid-template-columns: 1fr; }
   body.layout-hero header.top { visibility: hidden; }
   body.layout-recap .recap { display: block; }
   body.layout-sandbox iframe.sandbox { display: block; }
@@ -87,6 +116,7 @@
 <header class="top">
   <span class="kicker" id="kicker"></span>
   <h1 id="title"></h1>
+  <span class="section" id="section"></span>
 </header>
 
 <main class="stage" id="stage">
@@ -115,6 +145,7 @@
   </aside>
 
   <div class="hero" id="hero"></div>
+  <div class="paper" id="paper"><ul class="bullets" id="pbullets"></ul><div class="figure" id="figure"></div></div>
   <div class="recap" id="recap"></div>
   <iframe class="sandbox" id="sandbox" title="Raft sandbox"></iframe>
 </main>

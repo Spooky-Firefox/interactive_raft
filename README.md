@@ -9,36 +9,33 @@ There is no build step and no dependencies.
 
 ## The presentation
 
-The talk starts from an empty system and builds Raft one failure at a time:
-each slide shows something going wrong live, then adds the rule that fixes it.
-The rules collect in a "Rules so far" sidebar, which ends up as Raft's rulebook.
+A seminar review of the paper, structured as IMRAD (Introduction, Methods,
+Results, Discussion). The paper's artifact, Raft itself, is presented live:
+the talk builds Raft from nothing, one failure at a time. Each demo slide shows
+something going wrong in the simulator, then adds the rule that fixes it, and the
+rules collect in a "Rules so far" sidebar.
 
-| # | Slide | Rule added |
-|---|---|---|
-| 1 | The goal: a replicated, deterministic log | Same log, same order ⇒ same state |
-| 2 | Problem: everyone accepts writes | One leader decides the order |
-| 3 | Why a majority? *(optional)* | Decisions need 3 of 5 |
-| 4 | Problem: naive election, split vote forever | Terms, one vote per term |
-| 5 | Fix: randomized timeouts, heartbeats, leader failover | Random timeouts + heartbeats |
-| 6 | Problem: fire-and-forget replication on a lossy network | |
-| 7 | Fix: previous-entry check, acks, retries | Append only if previous entry matches |
-| 8 | Problem: applying too early loses an acknowledged write | |
-| 9 | Fix: commit before apply | Apply only committed entries |
-| 10 | Demo: a returning server catches up | nextIndex walks back |
-| 11 | Problem: a lagging server wins and overwrites committed data | |
-| 12 | Fix: vote only for up-to-date logs | Election restriction |
-| 13 | Demo: network partition, two leaders | Higher term wins |
-| 14–15 | Bonus: committing old-term entries (Figure 8) *(optional)* | Count only current-term entries |
-| 16 | Recap and what was skipped | |
-| 17 | Sandbox | |
+| Section | Slides |
+|---|---|
+| Introduction | Why this paper? (Paxos is hard; research question; key results up front) |
+| Methods: design | Decomposition and state-space reduction |
+| Methods: the artifact, rebuilt live | Replicated log → everyone writes → *why a majority* → split votes → randomized timeouts → lossy replication → prev-entry check and retries → applying too early → commit → catch-up → wrong server wins → election restriction → partitions → *Figure 8 bonus* |
+| Methods: evaluation | User study, TLA+ proofs, election timing |
+| Results | User study (25.7 vs 20.8 of 60), correctness, election performance |
+| Discussion | What the authors conclude, then our reflections |
+| Summary, Questions | Recap of the rules; sandbox |
 
-Each demo is scripted and uses seeded randomness, so it plays out the same way
-every rehearsal, but servers can still be clicked live.
+*Italic* slides are optional and hatched in the progress bar. Each demo is
+scripted with seeded randomness, so it plays out the same way in every rehearsal,
+but servers can still be clicked live. Set the presenters' names in `PRESENTERS`
+at the top of the figures section in `site/slides.js`.
 
 **Keys:** `→`/`Space`/`PageDown` next step · `←` previous slide · `R` replay the slide ·
 `P` pause · `+`/`−` speed · `C` client write · `N` speaker notes · `#/7` in the URL jumps
 to a slide. Click a server to crash/restart it, shift-click to force its election timeout.
-Optional slides are hatched in the progress bar.
+
+**PDF for Canvas:** `node tools/export-pdf.js` writes `export/slides.pdf`, one page
+per slide, each fully revealed, with the demos played to their outcome.
 
 ## The sandbox
 
@@ -51,6 +48,7 @@ acknowledged writes, a network partition toggle and a lossy-network mode.
 - `site/raft-view.js`: canvas and panel rendering
 - `site/slides.js`: the talk's content and scripted scenarios
 - `site/deck.js`: presentation controller
+- `tools/export-pdf.js`: exports the slides to PDF
 - `tests/slides.test.js`: plays every slide headlessly and checks each one shows its failure or its fix (`node tests/slides.test.js`, needs Playwright)
 
 ## Deploying to k3s with ArgoCD

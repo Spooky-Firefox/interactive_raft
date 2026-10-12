@@ -13,6 +13,12 @@
   const RULE_POINTS = [];
   SLIDES.forEach((sl, i) => (sl.frags || []).forEach((f, j) => { if (f.rule) RULE_POINTS.push({ i, j, key: f.rule }); }));
 
+  // IMRAD section shown in the header: the last `section` set at or before each slide.
+  const SECTION = [];
+  SLIDES.forEach((sl, i) => { SECTION[i] = sl.section != null ? sl.section : (SECTION[i - 1] || ""); });
+
+  const listEl = () => $((SLIDES[deck.i].layout === "text") ? "pbullets" : "bullets");
+
   const deck = { i: 0, frag: 0, sim: null, view: null, paused: false, speed: 1, notes: false, sandboxLoaded: false };
   window.deck = deck; // handy for debugging and the test harness
 
@@ -31,9 +37,11 @@
     $("kicker").textContent = sl.kicker || "";
     $("kicker").className = "kicker " + (sl.kicker || "").toLowerCase().replace(/\s+/g, "-");
     $("title").textContent = sl.title;
+    $("section").textContent = SECTION[i] === sl.kicker ? "" : SECTION[i];
     document.title = sl.title + " · Raft";
 
-    $("bullets").innerHTML = (sl.frags || []).map(f => `<li>${f.text}</li>`).join("");
+    $("bullets").innerHTML = ""; $("pbullets").innerHTML = "";
+    listEl().innerHTML = (sl.frags || []).map(f => `<li>${f.text}</li>`).join("");
     $("notes").innerHTML = `<b>Notes:</b> ${sl.notes || "—"}`;
 
     deck.sim = null;
@@ -55,7 +63,9 @@
       $("btnPart").classList.toggle("hidden", !(sl.controls || []).includes("partition"));
       requestAnimationFrame(() => { deck.view.fit(); renderPanels(); });
     } else if (layout === "hero") {
-      $("hero").innerHTML = `<h2>${sl.title}</h2><p>${sl.sub || ""}</p><div class="start">press → to start</div>`;
+      $("hero").innerHTML = `<h2>${sl.title}</h2><p>${sl.sub || ""}</p>${sl.meta ? `<div class="meta">${sl.meta}</div>` : ""}<div class="start">press → to start</div>`;
+    } else if (layout === "text") {
+      $("figure").innerHTML = sl.figure || "";
     } else if (layout === "recap") {
       renderRecap();
     } else if (layout === "sandbox") {
@@ -79,7 +89,7 @@
   function prev() { if (deck.i > 0) enter(deck.i - 1); }
 
   function renderBullets() {
-    [...$("bullets").children].forEach((li, k) => {
+    [...listEl().children].forEach((li, k) => {
       li.classList.toggle("shown", k < deck.frag);
       li.classList.toggle("past", k < deck.frag - 1);
     });

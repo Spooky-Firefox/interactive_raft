@@ -58,6 +58,62 @@
   }
   function figure8Takeover(sim) { sim.crash(0); sim.restart(4); sim.forceTimeout(4); }
 
+  // Fill in your names; shown on the title slide.
+  const PRESENTERS = "";
+
+  // Figures for the paper (IMRAD) slides. Every number is from raft.pdf. ------
+  const tile = (num, lbl, cls = "") => `<div class="tile ${cls}"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+  const bar = (x, top, color, label, value) =>
+    `<path d="M${x},300 V${top + 4} Q${x},${top} ${x + 4},${top} H${x + 106} Q${x + 110},${top} ${x + 110},${top + 4} V300 Z" fill="${color}"><title>${label}: mean ${value} of 60</title></path>` +
+    `<text x="${x + 55}" y="${top - 12}" text-anchor="middle" font-size="26" font-weight="700" fill="var(--text)">${value}</text>` +
+    `<text x="${x + 55}" y="330" text-anchor="middle" font-size="22" fill="var(--text)">${label}</text>`;
+  const grid = [0, 20, 40, 60].map(v => {
+    const y = 300 - v * 4.5;
+    return `<line x1="120" x2="430" y1="${y}" y2="${y}" stroke="var(--border)" stroke-width="1"/>` +
+      `<text x="108" y="${y + 6}" text-anchor="end" font-size="17" fill="var(--muted)">${v}</text>`;
+  }).join("");
+  const FIG = {
+    intro: `<blockquote class="quote">“There are significant gaps between the description of the Paxos algorithm and the needs of a real-world system… the final system will be based on an unproven protocol.”
+        <footer>Chandra et al., <i>Paxos Made Live</i> (Google, 2007), quoted in the paper</footer></blockquote>
+      <div class="src">The authors themselves needed “almost a year” to understand the full Paxos protocol.</div>`,
+    design: `<div class="pillars">
+        <div class="pillar" style="--c:var(--candidate)"><b>Leader election</b>Pick one leader; detect when it fails.</div>
+        <div class="pillar" style="--c:var(--ae)"><b>Log replication</b>The leader copies its log to everyone.</div>
+        <div class="pillar" style="--c:var(--leader)"><b>Safety</b>Committed entries are never lost or changed.</div>
+      </div>
+      <div class="src">+ a smaller state space: a strong leader, logs without holes, randomness instead of tie-break rules.</div>`,
+    evaluation: `<div class="tiles">
+        ${tile("43", "students at Stanford and U.C. Berkeley: video lectures and quizzes on Raft and Paxos")}
+        ${tile("TLA+", "formal specification of Raft, plus proofs")}
+        ${tile("5 servers", "their own Raft implementation: crash the leader, time the new election", "wide")}
+      </div>`,
+    study: `<svg class="chart" viewBox="0 0 460 350" role="img" aria-label="Mean quiz score out of 60: Paxos 20.8, Raft 25.7">
+        ${grid}${bar(140, 300 - 20.8 * 4.5, "var(--muted)", "Paxos", "20.8")}${bar(290, 300 - 25.7 * 4.5, "var(--leader)", "Raft", "25.7")}
+      </svg>
+      <div class="figcap">Mean quiz score (out of 60 points), 43 participants.</div>`,
+    correctness: `<div class="tiles">
+        ${tile("~400", "lines of TLA+ specifying Raft")}
+        ${tile("~3500", "words: informal proof of State Machine Safety")}
+        ${tile("Log Completeness", "proven mechanically with the TLA proof system, but the proof relies on invariants that were not machine-checked", "wide")}
+      </div>`,
+    performance: `<div class="tiles">
+        ${tile("&gt;10 s", "no randomness: split vote after split vote, as in our demo")}
+        ${tile("287 ms", "median with just 5 ms of randomness")}
+        ${tile("513 ms", "worst case of 1000 trials, 50 ms of randomness")}
+        ${tile("35 ms", "average with 12–24 ms timeouts (worst 152 ms)")}
+      </div>
+      <div class="figcap">Time to elect a new leader after crashing the old one, 5 servers.</div>`,
+    authors: `<blockquote class="quote">“We developed a new algorithm, Raft, which we have shown to be more understandable than Paxos. We also believe that Raft provides a better foundation for system building.”
+        <footer>Ongaro &amp; Ousterhout, conclusion</footer></blockquote>`,
+    ours: `<div class="tiles">
+        ${tile("etcd", "the store behind Kubernetes")}
+        ${tile("Consul", "service discovery")}
+        ${tile("CockroachDB", "distributed SQL")}
+        ${tile("TiKV", "distributed key-value store")}
+      </div>
+      <div class="figcap">Raft in production today. This is our addition, not from the paper.</div>`,
+  };
+
   // Rules ----------------------------------------------------------------------
   const RULES = {
     log: "Same log, same order ⇒ same state",
@@ -81,11 +137,42 @@
       layout: "hero",
       title: "Raft, one failure at a time",
       sub: "How five unreliable servers agree on a single log",
-      notes: "Plan: we build a replicated log from nothing. Every time it breaks, we add one rule. The rules we end up with are Raft.",
+      meta: `A review of D. Ongaro &amp; J. Ousterhout, <i>In Search of an Understandable Consensus Algorithm</i>,
+        USENIX ATC 2014 (extended version)<br>D7024E seminar${PRESENTERS ? " · " + PRESENTERS : ""} · raft.ronstad.se`,
+      notes: "Plan: why the paper exists, then we rebuild Raft live one failure at a time, then how the authors evaluated it, results, and our critique.",
     },
     {
+      layout: "text",
+      section: "Introduction",
+      kicker: "Introduction",
+      title: "Why this paper?",
+      figure: FIG.intro,
+      frags: [
+        { text: "Replicated systems keep copies of data on many machines, which must <b>agree</b> on every change. That is <b>consensus</b>." },
+        { text: "For decades the answer was <b>Paxos</b>: proven correct, but notoriously hard to understand and hard to build on." },
+        { text: "Research question: can we design a consensus algorithm whose <b>primary goal is understandability</b>?" },
+        { text: "Their answer is <b>Raft</b>. Students learned it better than Paxos, it is formally specified, and it performs as well." },
+      ],
+      notes: "Key results up front (the tips ask for this). The quote is from Google's Chubby team, cited in the paper as [4].",
+    },
+    {
+      layout: "text",
+      section: "Methods · design",
+      kicker: "Methods",
+      title: "How they designed for understandability",
+      figure: FIG.design,
+      frags: [
+        { text: "<b>Decomposition</b>: split consensus into three mostly independent problems." },
+        { text: "<b>Shrink the state space</b>: fewer ways for servers to disagree, fewer cases to reason about." },
+        { text: "Next we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper." },
+      ],
+      notes: "This is the artifact part of the paper (Sections 3–5). The live demo is our way of presenting it.",
+    },
+    {
+      section: "Methods · the artifact, rebuilt live",
       kicker: "The goal",
       title: "A replicated, deterministic log",
+      seed: 2,
       flags: { mode: "broadcast" },
       panels: ["logs", "sm"],
       frags: [
@@ -100,6 +187,7 @@
     {
       kicker: "Problem",
       title: "Everyone accepts writes",
+      seed: 3,
       flags: { mode: "broadcast" },
       clients: [{ id: "client A", x: -0.45, y: 0.12 }, { id: "client B", x: 0.45, y: 0.12 }],
       panels: ["logs", "sm"],
@@ -116,6 +204,7 @@
       kicker: "Background",
       optional: true,
       title: "Why a majority?",
+      seed: 4,
       flags: { mode: "broadcast" },
       clients: [],
       panels: [],
@@ -130,6 +219,7 @@
     {
       kicker: "Problem",
       title: "Electing a leader, naively",
+      seed: 5,
       flags: { randomTimeout: false },
       cfg: { fixedTimeout: 3500 },
       setup: holdTimers,
@@ -145,6 +235,7 @@
     {
       kicker: "Fix",
       title: "Randomized election timeouts",
+      seed: 6,
       setup: holdTimers,
       panels: ["events"],
       frags: [
@@ -158,6 +249,7 @@
     {
       kicker: "Problem",
       title: "Replicating the log, fire-and-forget",
+      seed: 7,
       flags: RAFT_OFF,
       setup: sim => sim.makeLeader(0, 1),
       panels: ["logs", "sm"],
@@ -172,6 +264,7 @@
     {
       kicker: "Fix",
       title: "Say where it goes, acknowledge, retry",
+      seed: 8,
       flags: { ...RAFT_OFF, acks: true },
       setup: sim => sim.makeLeader(0, 1),
       panels: ["logs", "sm"],
@@ -186,6 +279,7 @@
     {
       kicker: "Problem",
       title: "Applying too early",
+      seed: 9,
       flags: { commit: false },
       setup: stableCluster,
       panels: ["logs", "sm", "receipts"],
@@ -202,6 +296,7 @@
     {
       kicker: "Fix",
       title: "Commit before you apply",
+      seed: 10,
       setup: stableCluster,
       panels: ["logs", "sm", "receipts"],
       frags: [
@@ -216,6 +311,7 @@
     {
       kicker: "Demo",
       title: "Catching up a returning server",
+      seed: 11,
       setup: sim => {
         const full = [1, 1, 1, 1, 1, 1];
         sim.preset({ terms: [full, full, full, [1, 1], full], commit: [6, 6, 6, 2, 6] });
@@ -235,6 +331,7 @@
     {
       kicker: "Problem",
       title: "The wrong server wins",
+      seed: 12,
       flags: { electionRestriction: false },
       setup: laggingPair,
       panels: ["logs", "sm", "receipts"],
@@ -250,6 +347,7 @@
     {
       kicker: "Fix",
       title: "Vote only for up-to-date logs",
+      seed: 13,
       setup: laggingPair,
       panels: ["logs", "sm", "receipts"],
       frags: [
@@ -265,6 +363,7 @@
     {
       kicker: "Demo",
       title: "Two leaders? Network partitions",
+      seed: 14,
       setup: stableCluster,
       controls: ["partition"],
       panels: ["logs", "sm", "receipts"],
@@ -283,6 +382,7 @@
       kicker: "Bonus problem",
       optional: true,
       title: "The subtle one (Figure 8)",
+      seed: 15,
       flags: { currentTermCommit: false },
       setup: figure8,
       panels: ["logs", "receipts"],
@@ -298,6 +398,7 @@
       kicker: "Bonus fix",
       optional: true,
       title: "Only count replicas for the current term",
+      seed: 16,
       setup: figure8,
       panels: ["logs", "receipts"],
       frags: [
@@ -309,13 +410,92 @@
       notes: "Older entries get committed indirectly, via the log matching property.",
     },
     {
+      layout: "text",
+      section: "Methods · evaluation",
+      kicker: "Methods",
+      title: "How the authors evaluated Raft",
+      figure: FIG.evaluation,
+      frags: [
+        { text: "<b>Understandability</b>: a user study. Each student watched a lecture on both algorithms and took a quiz on each; half saw Paxos first." },
+        { text: "<b>Correctness</b>: a formal specification and proofs." },
+        { text: "<b>Performance</b>: their own implementation, repeatedly crashing the leader of a 5-server cluster and timing the election." },
+      ],
+      notes: "Section 9 of the paper. Note the study was designed to favor Paxos where it could: 15 of 43 had prior Paxos experience, and the Paxos video was 14% longer.",
+    },
+    {
+      layout: "text",
+      section: "Results",
+      kicker: "Results",
+      title: "Students understood Raft better",
+      figure: FIG.study,
+      frags: [
+        { text: "Raft scored <b>4.9 points</b> higher on average; <b>33 of 43</b> students did better on Raft." },
+        { text: "t-test: with 95% confidence, Raft's true mean is at least <b>2.5 points</b> higher." },
+        { text: "Regression (prior Paxos experience, order): <b>+12.5</b> points for Raft, but <b>6.3</b> lower on Raft if Paxos came first." },
+        { text: "Survey: <b>33 of 41</b> said Raft would be easier to implement and to explain." },
+      ],
+      notes: "The authors themselves say the survey answers are less reliable than quiz scores, and could be biased by knowing the hypothesis.",
+    },
+    {
+      layout: "text",
+      kicker: "Results",
+      title: "Correctness: specified, (mostly) proven",
+      figure: FIG.correctness,
+      frags: [
+        { text: "Raft is specified in <b>TLA+</b>; one key property is machine-checked, the main safety property has a careful informal proof." },
+        { text: "Not everything is machine-checked: the Log Completeness proof relies on invariants that were not checked mechanically." },
+      ],
+      notes: "Section 9.2.",
+    },
+    {
+      layout: "text",
+      kicker: "Results",
+      title: "Leader election is fast, with randomness",
+      figure: FIG.performance,
+      frags: [
+        { text: "Normal operation: one round trip from the leader to a majority per entry, the same as Paxos." },
+        { text: "Without randomized timeouts, elections <b>took over 10 seconds</b>: the split vote you saw earlier." },
+        { text: "A little randomness fixes it; lower timeouts mean faster failover, until heartbeats can't keep up." },
+      ],
+      notes: "Section 9.3, Figure 16. The leader was crashed at a random point within its heartbeat interval.",
+    },
+    {
+      layout: "text",
+      section: "Discussion",
+      kicker: "Discussion",
+      title: "What the authors conclude",
+      figure: FIG.authors,
+      frags: [
+        { text: "Raft is as efficient as Paxos, and <b>easier to understand</b>: the user study supports this." },
+        { text: "Designing for understandability is a goal you can actually <b>test</b>." },
+        { text: "Performance optimizations from Paxos variants could apply to Raft; they leave this to future work." },
+      ],
+      notes: "Keep this slide strictly to the authors' claims. Our own opinions are on the next slide.",
+    },
+    {
+      layout: "text",
+      kicker: "Our reflections",
+      title: "What we think",
+      figure: FIG.ours,
+      frags: [
+        { text: "The study is careful (order balanced, statistics, materials published), but a quiz after a one-hour lecture measures how <b>teachable</b> Raft is, not how easy it is to build correctly." },
+        { text: "Survey answers may be biased: participants could have known the hypothesis." },
+        { text: "Only part of the proof is machine-checked, and the performance section compares election settings, not Raft against Paxos." },
+        { text: "The strongest evidence came later: Raft is used in widely deployed systems." },
+        { text: "Building this demo: the happy path is simple; the subtle part is the safety corner cases. <b>Understandable</b> does not mean <b>trivial</b>." },
+      ],
+      notes: "Make clear these are our opinions, not the paper's.",
+    },
+    {
       layout: "recap",
+      section: "Summary",
       kicker: "Recap",
       title: "That's Raft",
       notes: "Point at how each rule came from a failure we saw. Mention the parts we skipped.",
     },
     {
       layout: "sandbox",
+      section: "Questions",
       kicker: "Try it",
       title: "Sandbox",
       notes: "Take questions; reproduce scenarios live.",
