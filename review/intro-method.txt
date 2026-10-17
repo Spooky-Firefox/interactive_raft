@@ -1,0 +1,13 @@
+INTRODUCTION
+
+Distributed systems such as databases and configuration stores keep copies of their data on several servers, so that the system keeps working even when some servers fail. To stay consistent, the servers must agree on the order of every change. This problem is called consensus. For many years the standard consensus algorithm has been Paxos. Paxos is proven correct, but it is known to be very hard to understand, and the authors argue that it is a poor foundation for building real systems. Ongaro and Ousterhout therefore ask whether a consensus algorithm can be designed with understandability as its primary goal. Their answer is Raft, a new consensus algorithm that they describe in detail and then evaluate against Paxos.
+
+METHOD
+
+Raft was designed with two techniques: splitting the problem into separate parts, and reducing the number of states the system can be in. Raft splits consensus into three main parts. In leader election, a server that hears nothing from a leader becomes a candidate and asks the others for votes. Elections are numbered by terms, each server votes at most once per term, and randomized election timeouts make split votes rare. In log replication, the leader adds client commands to its log and sends them to the followers. An entry is committed once a majority of the servers have stored it. For safety, a server only votes for a candidate whose log is at least as up to date as its own, which guarantees that a new leader already has every committed entry. The paper also covers changes to the set of servers (cluster membership changes) and log compaction.
+
+The authors evaluated Raft in three ways. Understandability was tested in a user study with 43 students at Stanford and U.C. Berkeley. Each student watched a video lecture on Raft and one on Paxos, and took a quiz after each. About half of the students learned Paxos first and the other half learned Raft first. Correctness was addressed with a formal specification in TLA+ together with proofs. Performance was measured with the authors' own Raft implementation, by repeatedly crashing the leader of a five-server cluster and timing how long it took to elect a new leader.
+
+AI DISCLAIMER
+
+The Introduction and Method sections were drafted with the help of an AI assistant (Claude, by Anthropic), based on the paper. All group members have read the paper, understand Raft, and take responsibility for the content. The Results and Discussion sections, including all opinions and reflections, were written by the group.
