@@ -58,9 +58,11 @@
   [21], [Correctness: specified, (mostly) proven], [1:00], [25:30],
   [22], [Leader election is fast, with randomness], [1:00], [26:30],
   [23], [What the authors conclude], [1:00], [27:30],
-  [24], [What we think], [2:00], [29:30],
-  [25], [That's Raft], [1:00], [30:30],
-  [26], [Sandbox], [2:00], [32:30],
+  [24], [The user study], [1:30], [29:00],
+  [25], [Correctness and performance], [1:30], [30:30],
+  [26], [Our takeaways], [1:30], [32:00],
+  [27], [That's Raft], [1:00], [33:00],
+  [28], [Sandbox], [2:00], [35:00],
 )
 Optional slides can be skipped to save about 3:30 min.
 
@@ -334,23 +336,31 @@ Optional slides can be skipped to save about 3:30 min.
 
 #meta[Results · Results · about 1:30 min]
 
-#opening[The user study results. Point at the chart: 25.7 versus 20.8 out of 60.]
+#opening[The first result: understandability. This is the paper's own figure.]
 
-#click(1)[Raft scored 4.9 points higher on average; 33 of 43 students did better on Raft.][33 of 43 students did better on Raft.]
-#click(2)[t-test: with 95% confidence, Raft's true mean is at least 2.5 points higher.][The difference is statistically significant: at least 2.5 points with 95% confidence.]
-#click(3)[Regression (prior Paxos experience, order): +12.5 points for Raft, but 6.3 lower on Raft if Paxos came first.][The regression controls for prior Paxos experience. Strange detail: learning Paxos first made Raft scores lower, and the authors don't know why.]
-#click(4)[Survey: 33 of 41 said Raft would be easier to implement and to explain.][The authors themselves say this survey is weaker evidence than the quiz.]
+#click(1)[43 students at Stanford and U.C. Berkeley; about half learned Paxos first, half Raft first.][Two video lectures and two quizzes per student. Half started with Paxos, so the order can't decide the result.]
+#click(2)[Average quiz score out of 60: 20.8 for Paxos, 25.7 for Raft. 33 of 43 did better on Raft.][Point at the diagonal: every point above it is a student who did better on Raft. That's 33 of 43.]
+#click(3)[t-test: with 95% confidence, Raft's mean is at least 2.5 points higher.][So the difference is statistically significant, not luck.]
+#click(4)[Linear regression (quiz, prior Paxos experience, order): 12.5 points in favour of Raft, but 6.3 lower on Raft for those who took the Paxos quiz first.][The model predicts an even bigger gap, 12.5 points. Strange detail: students who took the Paxos quiz first scored lower on Raft, and the authors don't know why.]
 
-#background[The authors themselves say the survey answers are less reliable than quiz scores, and could be biased by knowing the hypothesis.]
+#watch[The diagonal line in the scatter plot; red + is Raft first, blue x is Paxos first.]
+
+#background[The 12.5-point model prediction is higher than the observed 4.9 because many students had prior Paxos experience, which helped Paxos more. Survey: 33 of 41 said Raft would be easier to implement and explain.]
 
 == 21. Correctness: specified, (mostly) proven
 
 #meta[Results · Results · about 1:00 min]
 
-#click(1)[Raft is specified in TLA+; one key property is machine-checked, the main safety property has a careful informal proof.][TLA+ is a language for writing exact specifications. 400 lines for Raft, and a 3500-word proof of the main safety property.]
-#click(2)[Not everything is machine-checked: the Log Completeness proof relies on invariants that were not checked mechanically.][Be honest about the limit: the machine-checked proof rests on invariants that were not machine-checked.]
+#opening[Second result: correctness.]
 
-#background[Section 9.2.]
+#click(1)[A 400-line formal specification in TLA+.][TLA+ is a language for writing an exact description of an algorithm.]
+#click(2)[Log Completeness is proven with the TLA proof system: committed entries survive leader changes.][In plain words: once an entry is committed, every future leader will contain it. That's what you saw protected in our demo.]
+#click(3)[State Machine Safety has a 3500-word informal proof, relying only on the specification.][And: two servers can never apply different commands at the same log index. That's the guarantee clients care about.]
+#click(4)[But the machine-checked proof relies on invariants that were not fully proven.][Be honest about the limit: the machine-checked proof rests on invariants that were not themselves proven.]
+
+#watch[The two property cards.]
+
+#background[Section 9.2. The paper's example of an unchecked invariant: they have not proven the type safety of the specification.]
 
 == 22. Leader election is fast, with randomness
 
@@ -372,23 +382,48 @@ Optional slides can be skipped to save about 3:30 min.
 #click(2)[Designing for understandability is a goal you can actually test.][Understandability can be designed for and measured.]
 #click(3)[Performance optimizations from Paxos variants could apply to Raft; they leave this to future work.][Further optimizations are future work.]
 
-#background[Keep this slide strictly to the authors' claims. Our own opinions are on the next slide.]
+#background[Keep this slide strictly to the authors' claims. Our own discussion follows.]
 
-== 24. What we think
+== 24. The user study
 
-#meta[Discussion · Our reflections · about 2:00 min]
+#meta[Discussion · Discussion · about 1:30 min]
 
-#opening[Now our own opinions.]
+#opening[Now our discussion. First, the user study.]
 
-#click(1)[The study is careful (order balanced, statistics, materials published), but a quiz after a one-hour lecture measures how teachable Raft is, not how easy it is to build correctly.][The study is well designed, but a quiz after a one-hour video measures how easy it is to teach, not how easy it is to build correctly.]
-#click(2)[Survey answers may be biased: participants could have known the hypothesis.][The survey could be biased: participants could have known what the authors hoped for.]
-#click(3)[Only part of the proof is machine-checked, and the performance section compares election settings, not Raft against Paxos.][Some proof invariants are unchecked, and there is no head-to-head performance comparison with Paxos.]
-#click(4)[The strongest evidence came later: Raft is used in widely deployed systems.][The best evidence came after the paper: etcd, the store behind Kubernetes, Consul, CockroachDB and TiKV all use Raft.]
-#click(5)[Building this demo: the happy path is simple; the subtle part is the safety corner cases. Understandable does not mean trivial.][From building this demo: the normal case is easy. The safety corner cases are where all the subtlety is.]
+#click(1)[Well structured: the order of lectures and quizzes was varied, and the results were analysed with statistics.][We think it is well designed: the order was balanced and the results were analysed with statistics.]
+#click(2)[The authors acknowledge possible bias against Paxos and list the steps they took against it.][Point at the table: same lecturer, a longer Paxos lecture, paired quiz questions, and grading in random order.]
+#click(3)[But the survey answers are subjective, and participants may have been biased by knowing the hypothesis that Raft is easier, which could favour Raft.][Our main concern: the survey is subjective, and the authors themselves say participants may have been biased by knowing the hypothesis.]
+
+#watch[The rows of the bias table.]
+
+#background[Wording matters here: the paper says participants may have been biased by knowledge of the hypothesis. It does not say they were told it.]
+
+== 25. Correctness and performance
+
+#meta[Discussion · Discussion · about 1:30 min]
+
+#opening[Then correctness and performance.]
+
+#click(1)[Correctness doesn't rest on testing alone: the formal specification and the TLA proof make it much stronger.][A formal specification plus a proof is much stronger evidence than testing alone.]
+#click(2)[But by the authors' own admission not all invariants were mechanically checked, so parts of the argument rest on assumptions that are not fully verified.][But they say themselves that not every invariant was checked, so part of the proof rests on assumptions.]
+#click(3)[The performance experiments support randomized leader election, but don't compare performance against other Paxos variants in general.][The performance section shows randomized elections work, but it never compares Raft against other Paxos variants in general.]
+#click(4)[Replication uses the minimal number of messages; further optimizations from other algorithms are, in their words, “left to future work”.][They use the minimum number of messages for replication, and leave further optimizations to future work.]
+
+#background[These are the group's points from the written review.]
+
+== 26. Our takeaways
+
+#meta[Discussion · Our reflections · about 1:30 min]
+
+#opening[Two more thoughts of our own, beyond the written review.]
+
+#click(1)[A quiz after a one-hour lecture measures how teachable Raft is, not how easy it is to build correctly.][A quiz right after a lecture measures how easy Raft is to teach. Building a correct implementation is a different, harder test.]
+#click(2)[The strongest evidence came after the paper: Raft is used in widely deployed systems.][The best evidence came after the paper: etcd, the store behind Kubernetes, Consul, CockroachDB and TiKV all use Raft.]
+#click(3)[Building this demo: the happy path is simple; the subtle part is the safety corner cases. Understandable does not mean trivial.][From building this demo: the normal case is easy. The safety corner cases are where all the subtlety is.]
 
 #background[Make clear these are our opinions, not the paper's.]
 
-== 25. That's Raft
+== 27. That's Raft
 
 #meta[Summary · Recap · about 1:00 min]
 
@@ -396,7 +431,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Point at how each rule came from a failure we saw. Mention the parts we skipped.]
 
-== 26. Sandbox
+== 28. Sandbox
 
 #meta[Questions · Try it · about 2:00 min]
 

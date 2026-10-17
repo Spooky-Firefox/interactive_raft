@@ -35,6 +35,15 @@
   .chart text { font-family: system-ui, sans-serif; }
   .figcap { color: var(--muted); font-size: 1rem; margin-top: .6rem; }
   .src { color: var(--muted); font-size: .95rem; margin-top: 1rem; }
+  .paperfig { margin: 0; background: #fff; border-radius: 12px; padding: 1rem; max-width: 34rem; }
+  .paperfig img { display: block; width: 100%; height: auto; }
+  .tile.prop { font-size: 1.15rem; line-height: 1.4; }
+  .tile.prop .pname { font-size: 1.35rem; font-weight: 700; margin-bottom: .3rem; color: var(--leader); }
+  .tile.prop .how { font-size: .85rem; font-weight: 500; color: var(--muted); margin-left: .4rem; }
+  table.bias { width: 100%; border-collapse: collapse; font-size: 1.1rem; line-height: 1.4; }
+  table.bias th { text-align: left; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; padding: .4rem .6rem; border-bottom: 2px solid var(--border); }
+  table.bias td { padding: .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.bias td:first-child { font-weight: 600; white-space: nowrap; color: var(--candidate); }
 
   main.stage { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, .85fr); gap: 1.4vw; padding: .4rem 2.5vw .6rem; min-height: 0; }
   main.stage.nodata { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }

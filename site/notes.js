@@ -206,20 +206,25 @@
     },
     "Students understood Raft better": {
       min: 1.5,
-      open: "The user study results. Point at the chart: 25.7 versus 20.8 out of 60.",
+      open: "The first result: understandability. This is the paper's own figure.",
       steps: [
-        "33 of 43 students did better on Raft.",
-        "The difference is statistically significant: at least 2.5 points with 95% confidence.",
-        "The regression controls for prior Paxos experience. Strange detail: learning Paxos first made Raft scores lower, and the authors don't know why.",
-        "The authors themselves say this survey is weaker evidence than the quiz.",
+        "Two video lectures and two quizzes per student. Half started with Paxos, so the order can't decide the result.",
+        "Point at the diagonal: every point above it is a student who did better on Raft. That's 33 of 43.",
+        "So the difference is statistically significant, not luck.",
+        "The model predicts an even bigger gap, 12.5 points. Strange detail: students who took the Paxos quiz first scored lower on Raft, and the authors don't know why.",
       ],
+      watch: "The diagonal line in the scatter plot; red + is Raft first, blue x is Paxos first.",
     },
     "Correctness: specified, (mostly) proven": {
       min: 1,
+      open: "Second result: correctness.",
       steps: [
-        "TLA+ is a language for writing exact specifications. 400 lines for Raft, and a 3500-word proof of the main safety property.",
-        "Be honest about the limit: the machine-checked proof rests on invariants that were not machine-checked.",
+        "TLA+ is a language for writing an exact description of an algorithm.",
+        "In plain words: once an entry is committed, every future leader will contain it. That's what you saw protected in our demo.",
+        "And: two servers can never apply different commands at the same log index. That's the guarantee clients care about.",
+        "Be honest about the limit: the machine-checked proof rests on invariants that were not themselves proven.",
       ],
+      watch: "The two property cards.",
     },
     "Leader election is fast, with randomness": {
       min: 1,
@@ -238,13 +243,31 @@
         "Further optimizations are future work.",
       ],
     },
-    "What we think": {
-      min: 2,
-      open: "Now our own opinions.",
+    "The user study": {
+      min: 1.5,
+      open: "Now our discussion. First, the user study.",
       steps: [
-        "The study is well designed, but a quiz after a one-hour video measures how easy it is to teach, not how easy it is to build correctly.",
-        "The survey could be biased: participants could have known what the authors hoped for.",
-        "Some proof invariants are unchecked, and there is no head-to-head performance comparison with Paxos.",
+        "We think it is well designed: the order was balanced and the results were analysed with statistics.",
+        "Point at the table: same lecturer, a longer Paxos lecture, paired quiz questions, and grading in random order.",
+        "Our main concern: the survey is subjective, and the authors themselves say participants may have been biased by knowing the hypothesis.",
+      ],
+      watch: "The rows of the bias table.",
+    },
+    "Correctness and performance": {
+      min: 1.5,
+      open: "Then correctness and performance.",
+      steps: [
+        "A formal specification plus a proof is much stronger evidence than testing alone.",
+        "But they say themselves that not every invariant was checked, so part of the proof rests on assumptions.",
+        "The performance section shows randomized elections work, but it never compares Raft against other Paxos variants in general.",
+        "They use the minimum number of messages for replication, and leave further optimizations to future work.",
+      ],
+    },
+    "Our takeaways": {
+      min: 1.5,
+      open: "Two more thoughts of our own, beyond the written review.",
+      steps: [
+        "A quiz right after a lecture measures how easy Raft is to teach. Building a correct implementation is a different, harder test.",
         "The best evidence came after the paper: etcd, the store behind Kubernetes, Consul, CockroachDB and TiKV all use Raft.",
         "From building this demo: the normal case is easy. The safety corner cases are where all the subtlety is.",
       ],

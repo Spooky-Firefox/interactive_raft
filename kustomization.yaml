@@ -25,3 +25,4 @@ configMapGenerator:
       - site/deck.js
       - site/notes.js
       - site/presenter.html
+      - site/fig14.png

@@ -63,15 +63,6 @@
 
   // Figures for the paper (IMRAD) slides. Every number is from raft.pdf. ------
   const tile = (num, lbl, cls = "") => `<div class="tile ${cls}"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
-  const bar = (x, top, color, label, value) =>
-    `<path d="M${x},300 V${top + 4} Q${x},${top} ${x + 4},${top} H${x + 106} Q${x + 110},${top} ${x + 110},${top + 4} V300 Z" fill="${color}"><title>${label}: mean ${value} of 60</title></path>` +
-    `<text x="${x + 55}" y="${top - 12}" text-anchor="middle" font-size="26" font-weight="700" fill="var(--text)">${value}</text>` +
-    `<text x="${x + 55}" y="330" text-anchor="middle" font-size="22" fill="var(--text)">${label}</text>`;
-  const grid = [0, 20, 40, 60].map(v => {
-    const y = 300 - v * 4.5;
-    return `<line x1="120" x2="430" y1="${y}" y2="${y}" stroke="var(--border)" stroke-width="1"/>` +
-      `<text x="108" y="${y + 6}" text-anchor="end" font-size="17" fill="var(--muted)">${v}</text>`;
-  }).join("");
   const FIG = {
     intro: `<blockquote class="quote">“There are significant gaps between the description of the Paxos algorithm and the needs of a real-world system… the final system will be based on an unproven protocol.”
         <footer>Chandra et al., <i>Paxos Made Live</i> (Google, 2007), quoted in the paper</footer></blockquote>
@@ -87,14 +78,15 @@
         ${tile("TLA+", "formal specification of Raft, plus proofs")}
         ${tile("5 servers", "their own Raft implementation: crash the leader, time the new election", "wide")}
       </div>`,
-    study: `<svg class="chart" viewBox="0 0 460 350" role="img" aria-label="Mean quiz score out of 60: Paxos 20.8, Raft 25.7">
-        ${grid}${bar(140, 300 - 20.8 * 4.5, "var(--muted)", "Paxos", "20.8")}${bar(290, 300 - 25.7 * 4.5, "var(--leader)", "Raft", "25.7")}
-      </svg>
-      <div class="figcap">Mean quiz score (out of 60 points), 43 participants.</div>`,
+    study: `<figure class="paperfig"><img src="fig14.png" alt="Scatter plot of each student's Raft grade against Paxos grade; 33 of 43 points lie above the diagonal"></figure>
+      <div class="figcap">The paper's Figure 14. Each point is one student; above the diagonal = better on Raft (33 of 43).</div>`,
     correctness: `<div class="tiles">
         ${tile("~400", "lines of TLA+ specifying Raft")}
-        ${tile("~3500", "words: informal proof of State Machine Safety")}
-        ${tile("Log Completeness", "proven mechanically with the TLA proof system, but the proof relies on invariants that were not machine-checked", "wide")}
+        ${tile("~3500", "word informal proof")}
+        <div class="tile wide prop"><div class="pname">Log / Leader Completeness <span class="how">machine-checked with the TLA proof system</span></div>
+          Once an entry is committed, every future leader will contain it.</div>
+        <div class="tile wide prop"><div class="pname">State Machine Safety <span class="how">informal proof</span></div>
+          Two servers can never apply different commands at the same log index.</div>
       </div>`,
     performance: `<div class="tiles">
         ${tile("&gt;10 s", "no randomness: split vote after split vote, as in our demo")}
@@ -105,6 +97,13 @@
       <div class="figcap">Time to elect a new leader after crashing the old one, 5 servers.</div>`,
     authors: `<blockquote class="quote">“We developed a new algorithm, Raft, which we have shown to be more understandable than Paxos. We also believe that Raft provides a better foundation for system building.”
         <footer>Ongaro &amp; Ousterhout, conclusion</footer></blockquote>`,
+    bias: `<table class="bias">
+        <tr><th>Concern</th><th>Steps taken to mitigate bias</th></tr>
+        <tr><td>Equal lecture quality</td><td>Same lecturer for both. Paxos lecture based on and improved from existing materials used in several universities. Paxos lecture is 14% longer.</td></tr>
+        <tr><td>Equal quiz difficulty</td><td>Questions grouped in difficulty and paired across exams.</td></tr>
+        <tr><td>Fair grading</td><td>Used rubric. Graded in random order, alternating between quizzes.</td></tr>
+      </table>
+      <div class="figcap">The paper's Table 1. All study materials are published for review.</div>`,
     ours: `<div class="tiles">
         ${tile("etcd", "the store behind Kubernetes")}
         ${tile("Consul", "service discovery")}
@@ -429,12 +428,12 @@
       title: "Students understood Raft better",
       figure: FIG.study,
       frags: [
-        { text: "Raft scored <b>4.9 points</b> higher on average; <b>33 of 43</b> students did better on Raft." },
-        { text: "t-test: with 95% confidence, Raft's true mean is at least <b>2.5 points</b> higher." },
-        { text: "Regression (prior Paxos experience, order): <b>+12.5</b> points for Raft, but <b>6.3</b> lower on Raft if Paxos came first." },
-        { text: "Survey: <b>33 of 41</b> said Raft would be easier to implement and to explain." },
+        { text: "43 students at Stanford and U.C. Berkeley; about half learned Paxos first, half Raft first." },
+        { text: "Average quiz score out of 60: <b>20.8</b> for Paxos, <b>25.7</b> for Raft. <b>33 of 43</b> did better on Raft." },
+        { text: "t-test: with 95% confidence, Raft's mean is at least <b>2.5 points</b> higher." },
+        { text: "Linear regression (quiz, prior Paxos experience, order): <b>12.5</b> points in favour of Raft, but <b>6.3</b> lower on Raft for those who took the Paxos quiz first." },
       ],
-      notes: "The authors themselves say the survey answers are less reliable than quiz scores, and could be biased by knowing the hypothesis.",
+      notes: "The 12.5-point model prediction is higher than the observed 4.9 because many students had prior Paxos experience, which helped Paxos more. Survey: 33 of 41 said Raft would be easier to implement and explain.",
     },
     {
       layout: "text",
@@ -442,10 +441,12 @@
       title: "Correctness: specified, (mostly) proven",
       figure: FIG.correctness,
       frags: [
-        { text: "Raft is specified in <b>TLA+</b>; one key property is machine-checked, the main safety property has a careful informal proof." },
-        { text: "Not everything is machine-checked: the Log Completeness proof relies on invariants that were not checked mechanically." },
+        { text: "A <b>400-line</b> formal specification in <b>TLA+</b>." },
+        { text: "<b>Log Completeness</b> is proven with the TLA proof system: committed entries survive leader changes." },
+        { text: "<b>State Machine Safety</b> has a 3500-word informal proof, relying only on the specification." },
+        { text: "But the machine-checked proof relies on invariants that were <b>not fully proven</b>." },
       ],
-      notes: "Section 9.2.",
+      notes: "Section 9.2. The paper's example of an unchecked invariant: they have not proven the type safety of the specification.",
     },
     {
       layout: "text",
@@ -470,18 +471,41 @@
         { text: "Designing for understandability is a goal you can actually <b>test</b>." },
         { text: "Performance optimizations from Paxos variants could apply to Raft; they leave this to future work." },
       ],
-      notes: "Keep this slide strictly to the authors' claims. Our own opinions are on the next slide.",
+      notes: "Keep this slide strictly to the authors' claims. Our own discussion follows.",
+    },
+    {
+      layout: "text",
+      kicker: "Discussion",
+      title: "The user study",
+      figure: FIG.bias,
+      frags: [
+        { text: "Well structured: the order of lectures and quizzes was varied, and the results were analysed with statistics." },
+        { text: "The authors acknowledge possible bias against Paxos and list the steps they took against it." },
+        { text: "But the survey answers are subjective, and participants <b>may have been biased by knowing the hypothesis</b> that Raft is easier, which could favour Raft." },
+      ],
+      notes: "Wording matters here: the paper says participants may have been biased by knowledge of the hypothesis. It does not say they were told it.",
+    },
+    {
+      layout: "text",
+      kicker: "Discussion",
+      title: "Correctness and performance",
+      figure: FIG.correctness,
+      frags: [
+        { text: "Correctness doesn't rest on testing alone: the formal specification and the TLA proof make it much stronger." },
+        { text: "But by the authors' own admission not all invariants were mechanically checked, so parts of the argument rest on assumptions that are not fully verified." },
+        { text: "The performance experiments support randomized leader election, but don't compare performance against other Paxos variants in general." },
+        { text: "Replication uses the minimal number of messages; further optimizations from other algorithms are, in their words, <b>“left to future work”</b>." },
+      ],
+      notes: "These are the group's points from the written review.",
     },
     {
       layout: "text",
       kicker: "Our reflections",
-      title: "What we think",
+      title: "Our takeaways",
       figure: FIG.ours,
       frags: [
-        { text: "The study is careful (order balanced, statistics, materials published), but a quiz after a one-hour lecture measures how <b>teachable</b> Raft is, not how easy it is to build correctly." },
-        { text: "Survey answers may be biased: participants could have known the hypothesis." },
-        { text: "Only part of the proof is machine-checked, and the performance section compares election settings, not Raft against Paxos." },
-        { text: "The strongest evidence came later: Raft is used in widely deployed systems." },
+        { text: "A quiz after a one-hour lecture measures how <b>teachable</b> Raft is, not how easy it is to build correctly." },
+        { text: "The strongest evidence came after the paper: Raft is used in widely deployed systems." },
         { text: "Building this demo: the happy path is simple; the subtle part is the safety corner cases. <b>Understandable</b> does not mean <b>trivial</b>." },
       ],
       notes: "Make clear these are our opinions, not the paper's.",
