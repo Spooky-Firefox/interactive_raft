@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speaker View · Raft</title>
+<link rel="stylesheet" href="raft.css">
+<style>
+  html { font-size: clamp(13px, 1.5vw, 20px); }
+  body { min-height: 100vh; display: flex; flex-direction: column; font-size: 1rem; line-height: 1.5; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.4rem; padding: .7rem 1.2rem; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .clock { display: flex; flex-direction: column; }
+  .clock .v { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .clock .l { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .pace.behind .v { color: var(--bad); } .pace.ahead .v { color: var(--leader); }
+  .bar .spacer { flex: 1; }
+  #status { margin: .8rem 1.2rem 0; padding: .7rem 1rem; border-radius: 10px; font-size: 1.4rem; font-weight: 700; border: 2px solid; }
+  #status.done { color: var(--leader); border-color: var(--leader); background: rgba(63,178,127,.1); }
+  #status.busy { color: var(--candidate); border-color: var(--candidate); background: rgba(224,160,48,.1); }
+  #status.idle { color: var(--muted); border-color: var(--border); }
+  #status small { display: block; font-size: .9rem; font-weight: 500; color: var(--muted); }
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 1.2rem; padding: 1rem 1.2rem 1.2rem; min-height: 0; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .where { color: var(--muted); font-size: .95rem; }
+  .where .opt { color: var(--candidate); }
+  h1 { margin: .1rem 0 .8rem; font-size: 2rem; line-height: 1.2; }
+  .say { background: var(--panel); border-left: 5px solid var(--ae); border-radius: 8px; padding: .9rem 1.1rem; font-size: 1.55rem; line-height: 1.5; }
+  .say .lbl, .card h3 { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 .3rem; font-weight: 600; }
+  .watch { margin-top: .8rem; font-size: 1.15rem; } .watch b { color: var(--candidate); }
+  ol.points { margin: 1rem 0 0; padding-left: 1.6em; display: flex; flex-direction: column; gap: .35rem; font-size: 1.05rem; }
+  ol.points li { color: var(--muted); }
+  ol.points li.done { color: var(--text); opacity: .7; }
+  ol.points li.current { color: var(--text); font-weight: 600; opacity: 1; }
+  ol.points li.done::marker { content: "✓ "; color: var(--leader); }
+  .side { display: flex; flex-direction: column; gap: 1rem; min-height: 0; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .8rem 1rem; }
+  .next { font-size: 1.2rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .controls button { font-size: 1.1rem; padding: .5em 1em; }
+  .agenda { overflow: auto; flex: 1; min-height: 8rem; max-height: 40vh; position: relative; }
+  .agenda ol { margin: 0; padding-left: 2em; font-size: .9rem; }
+  .agenda li { cursor: pointer; padding: .05rem 0; color: var(--muted); }
+  .agenda li.cur { color: var(--text); font-weight: 600; }
+  .agenda li .m { float: right; font-variant-numeric: tabular-nums; }
+  .agenda li .o { color: var(--candidate); font-size: .8em; }
+  .bg { color: var(--muted); font-size: .95rem; }
+  #offline { display: none; margin: .8rem 1.2rem 0; padding: .6rem 1rem; border: 1px dashed var(--bad); border-radius: 8px; color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="clock"><span class="v" id="tTotal">0:00</span><span class="l">talk time</span></div>
+  <div class="clock"><span class="v" id="tSlide">0:00</span><span class="l" id="tSlideL">on this slide</span></div>
+  <div class="clock pace" id="pace"><span class="v" id="tPace">±0:00</span><span class="l" id="tPaceL">vs plan</span></div>
+  <div class="clock"><span class="v" id="tClock">--:--</span><span class="l">clock</span></div>
+  <span class="spacer"></span>
+  <button id="bTimer" title="T">Start timer</button>
+  <button id="bReset">Reset timer</button>
+</div>
+<div id="offline">Not connected to the slides. Open the presentation in another window of this same browser, then press S there (or reload this window).</div>
+<div id="status" class="idle">Waiting for the slides…</div>
+<main>
+  <section>
+    <div class="where" id="where"></div>
+    <h1 id="title"></h1>
+    <div class="say"><span class="lbl" id="sayL">Say now</span><span id="say"></span></div>
+    <div class="watch" id="watch"></div>
+    <ol class="points" id="points"></ol>
+  </section>
+  <aside class="side">
+    <div class="card next"><h3>Next click</h3><div id="next"></div></div>
+    <div class="card controls">
+      <button id="bPrev">◀ Prev</button>
+      <button class="primary" id="bNext">Next ▶</button>
+      <button id="bReplay">↺ Replay</button>
+      <button id="bPause">❚❚ Pause</button>
+    </div>
+    <div class="card bg" id="bg"></div>
+    <div class="card agenda"><h3>Slides (planned minutes)</h3><ol id="agenda"></ol></div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const chan = new BroadcastChannel("raft-deck");
+const send = (cmd, extra = {}) => chan.postMessage({ type: "cmd", cmd, ...extra });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = ms => { const s = Math.max(0, Math.round(Math.abs(ms) / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+// ---- talk timer (kept across reloads of this window)
+const KEY = "raft-presenter-timer";
+let timer = { running: false, start: 0, acc: 0 };
+try { timer = { ...timer, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch (_) {}
+const saveTimer = () => { try { localStorage.setItem(KEY, JSON.stringify(timer)); } catch (_) {} };
+const elapsed = () => timer.acc + (timer.running ? Date.now() - timer.start : 0);
+function toggleTimer() {
+  if (timer.running) { timer.acc = elapsed(); timer.running = false; }
+  else { timer.start = Date.now(); timer.running = true; }
+  saveTimer(); renderClock();
+}
+function resetTimer() { timer = { running: false, start: 0, acc: 0 }; saveTimer(); slideSince = Date.now(); renderClock(); }
+
+let state = null, lastMsg = 0, slideIdx = -1, slideSince = Date.now(), agendaKey = "";
+
+chan.onmessage = ({ data }) => {
+  if (data.type !== "state") return;
+  lastMsg = Date.now();
+  const st = data.state;
+  if (st.i !== slideIdx) {
+    slideIdx = st.i; slideSince = Date.now();
+    if (st.i > 0 && !timer.running && timer.acc === 0) toggleTimer(); // start automatically when the talk begins
+  }
+  state = st;
+  render();
+};
+send("hello");
+
+function render() {
+  const st = state; if (!st) return;
+  const n = st.note || {};
+  $("where").innerHTML = `Slide ${st.i + 1} / ${st.n} · ${esc(st.section || "")}${st.kicker ? " · " + esc(st.kicker) : ""}${st.optional ? ' · <span class="opt">optional, skip if short on time</span>' : ""}`;
+  $("title").textContent = st.title;
+  const say = st.frag > 0 ? (n.steps || [])[st.frag - 1] : n.open;
+  $("sayL").textContent = st.frag > 0 ? `Say now (point ${st.frag} of ${st.frags.length})` : "Say now (slide opens)";
+  $("say").textContent = say || "(no note for this point)";
+  $("watch").innerHTML = n.watch ? `<b>Point at:</b> ${esc(n.watch)}` : "";
+  $("points").innerHTML = st.frags.map((f, k) =>
+    `<li class="${k < st.frag - 1 ? "done" : k === st.frag - 1 ? "current" : ""}">${esc(f)}</li>`).join("");
+  $("next").textContent = st.next ? (st.next.kind === "point" ? "Reveal: " : "Next slide: ") + st.next.text : "End of the talk";
+  $("bg").innerHTML = st.background ? `<h3>Background</h3>${esc(st.background)}` : "<h3>Background</h3>—";
+  $("bPause").textContent = st.paused ? "▶ Resume" : "❚❚ Pause";
+
+  const s = $("status");
+  if (!st.demo) { s.className = "idle"; s.innerHTML = "No animation on this slide"; }
+  else if (st.status.busy) {
+    s.className = "busy";
+    s.innerHTML = `${st.paused ? "❚❚ Paused" : "● Animation running"}: ${esc(st.status.reasons[0])}<small>${esc(st.status.reasons.join(" · "))} · sim ${(st.simTime / 1000).toFixed(1)}s</small>`;
+  } else {
+    s.className = "done";
+    s.innerHTML = `✓ Animation done: safe to click<small>sim ${(st.simTime / 1000).toFixed(1)}s</small>`;
+  }
+
+  const key = st.i + "|" + st.n;
+  if (key !== agendaKey) {
+    agendaKey = key;
+    $("agenda").innerHTML = st.plan.map((p, k) =>
+      `<li data-k="${k}" class="${k === st.i ? "cur" : ""}">${esc(p.title)}${p.optional ? ' <span class="o">opt</span>' : ""}<span class="m">${p.min}</span></li>`).join("");
+    const cur = $("agenda").children[st.i];
+    // scroll only the list itself (scrollIntoView would also scroll the window and hide the timers)
+    const box = cur && cur.closest(".agenda");
+    if (box) box.scrollTop = Math.max(0, cur.offsetTop - box.offsetTop - box.clientHeight / 2);
+  }
+  renderClock();
+}
+
+function renderClock() {
+  const now = Date.now();
+  $("tTotal").textContent = fmt(elapsed());
+  $("tClock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("bTimer").textContent = timer.running ? "Pause timer" : elapsed() ? "Resume timer" : "Start timer";
+  if (!state) return;
+  const slideMs = now - slideSince;
+  const planMs = (state.plan[state.i]?.min || 0) * 60000;
+  $("tSlide").textContent = fmt(slideMs);
+  $("tSlideL").textContent = `on this slide (plan ${fmt(planMs)})`;
+  const before = state.plan.slice(0, state.i).reduce((a, p) => a + p.min * 60000, 0);
+  const pace = elapsed() - (before + Math.min(slideMs, planMs));
+  $("tPace").textContent = (pace > 0 ? "+" : "−") + fmt(pace);
+  $("tPaceL").textContent = pace > 30000 ? "behind plan" : pace < -30000 ? "ahead of plan" : "on plan";
+  $("pace").className = "clock pace " + (pace > 30000 ? "behind" : pace < -30000 ? "ahead" : "");
+  $("offline").style.display = now - lastMsg > 2000 ? "block" : "none";
+}
+setInterval(renderClock, 500);
+
+$("bPrev").onclick = () => send("prev");
+$("bNext").onclick = () => send("next");
+$("bReplay").onclick = () => send("replay");
+$("bPause").onclick = () => send("pause");
+$("bTimer").onclick = toggleTimer;
+$("bReset").onclick = resetTimer;
+$("agenda").addEventListener("click", e => { const li = e.target.closest("li"); if (li) send("goto", { i: +li.dataset.k }); });
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (["ArrowRight", " ", "PageDown", "Enter"].includes(k)) send("next");
+  else if (["ArrowLeft", "PageUp", "Backspace"].includes(k)) send("prev");
+  else if (k === "r" || k === "R") send("replay");
+  else if (k === "p" || k === "P") send("pause");
+  else if (k === "t" || k === "T") toggleTimer();
+  else return;
+  e.preventDefault();
+});
+</script>
+</body>
+</html>

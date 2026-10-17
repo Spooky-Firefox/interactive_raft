@@ -523,6 +523,43 @@
       while (ms > 0) { const d = Math.min(ms, 20); this.step(d); ms -= d; }
     }
 
+    // Why the cluster is still "moving" (empty array = settled, safe to click on).
+    // Heartbeats alone don't count; pending scripted steps, real traffic,
+    // elections and followers that are behind do.
+    activity() {
+      const reasons = [];
+      const live = s => !s.crashed;
+      if (this.timers.length) reasons.push("scripted steps pending");
+      if (this.watchers.length) reasons.push("waiting for a leader");
+      const busyMsg = this.messages.some(m => !m.drop && (isClient(m.to) || live(this.servers[m.to])) && (
+        m.type === "RV" || m.type === "RVR" || m.type === "CLIENT" || m.type === "OK" ||
+        (m.type === "AE" && m.entries.length > 0) || (m.type === "AER" && (!m.success || m.n > 0))));
+      if (busyMsg) reasons.push("messages in flight");
+      if (this.flags.mode === "raft") {
+        if (this.servers.some(s => live(s) && s.state === "candidate")) reasons.push("election in progress");
+        if (this.flags.elections) {
+          // A live follower with no reachable current leader, in a group that could elect one.
+          const leaderless = this.servers.some(s => {
+            if (!live(s) || s.state === "leader" || !isFinite(s.electionDeadline)) return false;
+            const l = s.leaderId != null ? this.servers[s.leaderId] : null;
+            if (l && live(l) && l.state === "leader" && l.term >= s.term && this.canReach(s.id, l.id)) return false;
+            const group = this.servers.filter(p => live(p) && this.canReach(s.id, p.id)).length;
+            return group >= this.majority;
+          });
+          if (leaderless && !reasons.includes("election in progress")) reasons.push("waiting for an election");
+        }
+        const l = this.leader();
+        if (l && this.flags.acks) {
+          const behind = this.servers.some(f => f !== l && live(f) && this.canReach(l.id, f.id) &&
+            (l.matchIndex[f.id] < l.log.length || (this.flags.commit && f.commitIndex < l.commitIndex)));
+          if (behind) reasons.push("followers catching up");
+        }
+      }
+      const last = this.events[this.events.length - 1];
+      if (!reasons.length && last && this.now - last.t < 1000) reasons.push("settling");
+      return reasons;
+    }
+
     // Is every applied prefix identical across live servers?
     consistent() {
       const ref = this.servers.reduce((a, b) => (b.lastApplied > a.lastApplied ? b : a));

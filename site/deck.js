@@ -17,6 +17,10 @@
   const SECTION = [];
   SLIDES.forEach((sl, i) => { SECTION[i] = sl.section != null ? sl.section : (SECTION[i - 1] || ""); });
 
+  const NOTES = window.NOTES || {};
+  // The presenter window (presenter.html) follows the deck and sends commands back.
+  const chan = "BroadcastChannel" in window ? new BroadcastChannel("raft-deck") : null;
+
   const listEl = () => $((SLIDES[deck.i].layout === "text") ? "pbullets" : "bullets");
 
   const deck = { i: 0, frag: 0, sim: null, view: null, paused: false, speed: 1, notes: false, sandboxLoaded: false };
@@ -42,7 +46,6 @@
 
     $("bullets").innerHTML = ""; $("pbullets").innerHTML = "";
     listEl().innerHTML = (sl.frags || []).map(f => `<li>${f.text}</li>`).join("");
-    $("notes").innerHTML = `<b>Notes:</b> ${sl.notes || "—"}`;
 
     deck.sim = null;
     if (layout === "demo") {
@@ -88,11 +91,52 @@
   }
   function prev() { if (deck.i > 0) enter(deck.i - 1); }
 
+  // What to say right now: the slide's opening line before the first click,
+  // then the note for the point just revealed.
+  function sayNow() {
+    const n = NOTES[SLIDES[deck.i].title] || {};
+    return deck.frag > 0 ? (n.steps || [])[deck.frag - 1] || "" : n.open || "";
+  }
+  function renderNotes() {
+    const sl = SLIDES[deck.i], n = NOTES[sl.title] || {};
+    $("notes").innerHTML = `<b>Say:</b> ${V.esc(sayNow() || "—")}` +
+      (n.watch ? `<br><b>Point at:</b> ${V.esc(n.watch)}` : "") +
+      (sl.notes ? `<br><b>Background:</b> ${sl.notes}` : "");
+  }
+
+  function status() {
+    if (!deck.sim) return { busy: false, reasons: [] };
+    const reasons = deck.sim.activity();
+    return { busy: reasons.length > 0, reasons };
+  }
+  function renderStatus(st) {
+    const el = $("status");
+    el.className = "status " + (st.busy ? "busy" : "done");
+    el.textContent = st.busy ? (deck.paused ? "❚❚ paused: " : "● ") + st.reasons[0] : "✓ done";
+    el.title = st.busy ? st.reasons.join(", ") : "Nothing is happening that the audience needs to see";
+  }
+
+  function stateForPresenter() {
+    const sl = SLIDES[deck.i];
+    const nextSlide = SLIDES[deck.i + 1];
+    const frags = (sl.frags || []).map(f => f.text.replace(/<[^>]+>/g, ""));
+    return {
+      i: deck.i, n: SLIDES.length, frag: deck.frag, title: sl.title, kicker: sl.kicker || "", section: SECTION[deck.i],
+      optional: !!sl.optional, demo: !!deck.sim, frags, note: NOTES[sl.title] || {}, background: (sl.notes || "").replace(/<[^>]+>/g, ""),
+      plan: SLIDES.map(s => ({ title: s.title, min: (NOTES[s.title] || {}).min || 0, optional: !!s.optional })),
+      next: deck.frag < frags.length ? { kind: "point", text: frags[deck.frag] } : nextSlide ? { kind: "slide", text: nextSlide.title } : null,
+      status: status(), simTime: deck.sim ? deck.sim.now : 0, paused: deck.paused, speed: deck.speed,
+    };
+  }
+  function publish() { if (chan) chan.postMessage({ type: "state", state: stateForPresenter() }); }
+
   function renderBullets() {
     [...listEl().children].forEach((li, k) => {
       li.classList.toggle("shown", k < deck.frag);
       li.classList.toggle("past", k < deck.frag - 1);
     });
+    renderNotes();
+    publish();
   }
 
   function renderRules() {
@@ -132,7 +176,7 @@
   }
 
   // ------------------------------------------------------------------ loop
-  let last = performance.now(), lastPanel = 0, lastSize = "";
+  let last = performance.now(), lastPanel = 0, lastSize = "", lastPublish = 0;
   function frame(t) {
     const dt = Math.min(100, t - last); last = t;
     if (deck.sim) {
@@ -140,8 +184,9 @@
       const r = $("cv").getBoundingClientRect(), size = r.width + "x" + r.height;
       if (size !== lastSize) { deck.view.fit(); lastSize = size; }
       deck.view.draw({ paused: deck.paused });
-      if (t - lastPanel > 120) { renderPanels(); lastPanel = t; }
+      if (t - lastPanel > 120) { renderPanels(); renderStatus(status()); lastPanel = t; }
     }
+    if (t - lastPublish > 250) { publish(); lastPublish = t; }
     requestAnimationFrame(frame);
   }
 
@@ -166,6 +211,7 @@
       case "End": enter(SLIDES.length - 1); break;
       case "r": case "R": enter(deck.i); break;
       case "p": case "P": togglePause(); break;
+      case "s": case "S": openPresenter(); break;
       case "n": case "N": deck.notes = !deck.notes; $("notes").classList.toggle("hidden", !deck.notes); break;
       case "c": case "C": clientWrite(); break;
       case "+": case "=": setSpeed(deck.speed * 1.5); break;
@@ -175,6 +221,23 @@
     e.preventDefault();
   }
   document.addEventListener("keydown", onKey);
+
+  function openPresenter() {
+    window.open("presenter.html", "raft-presenter", "width=1200,height=800");
+  }
+  if (chan) chan.onmessage = ({ data }) => {
+    if (data.type !== "cmd") return;
+    switch (data.cmd) {
+      case "next": next(); break;
+      case "prev": prev(); break;
+      case "replay": enter(deck.i); break;
+      case "pause": togglePause(); break;
+      case "goto": enter(Math.max(0, Math.min(SLIDES.length - 1, data.i | 0))); break;
+      case "hello": break;
+    }
+    publish();
+  };
+  $("btnPresenter").onclick = e => { openPresenter(); e.target.blur(); };
 
   // The sandbox iframe swallows key presses; forward navigation keys back to the deck.
   $("sandbox").addEventListener("load", () => {

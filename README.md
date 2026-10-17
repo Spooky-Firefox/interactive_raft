@@ -34,6 +34,17 @@ at the top of the figures section in `site/slides.js`.
 `P` pause · `+`/`−` speed · `C` client write · `N` speaker notes · `#/7` in the URL jumps
 to a slide. Click a server to crash/restart it, shift-click to force its election timeout.
 
+**Speaker view:** press `S` (or the "Speaker view" button) to open a second window
+with the talk timer, time per slide vs plan, what to say now, what to point at, the
+next click, and a big light showing whether the animation is still running or done.
+Its buttons and arrow keys drive the slides, so the deck can go on the projector while
+you present from the laptop screen (both windows must be in the same browser). The
+deck also shows a small "running / ✓ done" chip next to the demo controls.
+
+**Speaker notes:** written in `site/notes.js` (one line per click). `node tools/export-notes.js`
+turns them into `notes/speaker-notes.typ`; compile with `typst compile notes/speaker-notes.typ`
+for the printable `notes/speaker-notes.pdf`.
+
 **PDF for Canvas:** `node tools/export-pdf.js` writes `export/slides.pdf`, one page
 per slide, each fully revealed, with the demos played to their outcome.
 
@@ -48,7 +59,9 @@ acknowledged writes, a network partition toggle and a lossy-network mode.
 - `site/raft-view.js`: canvas and panel rendering
 - `site/slides.js`: the talk's content and scripted scenarios
 - `site/deck.js`: presentation controller
+- `site/notes.js`, `site/presenter.html`: speaker notes and the speaker view
 - `tools/export-pdf.js`: exports the slides to PDF
+- `tools/export-notes.js`: exports the speaker notes to Typst
 - `tests/slides.test.js`: plays every slide headlessly and checks each one shows its failure or its fix (`node tests/slides.test.js`, needs Playwright)
 
 ## Deploying to k3s with ArgoCD

@@ -23,3 +23,5 @@ configMapGenerator:
       - site/raft-view.js
       - site/slides.js
       - site/deck.js
+      - site/notes.js
+      - site/presenter.html

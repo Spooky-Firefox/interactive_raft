@@ -44,6 +44,10 @@
   .vizbar { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .9rem; }
   .vizbar .spacer { flex: 1; }
   .vizbar .speed { color: var(--muted); }
+  .status { font-size: .85rem; padding: .2em .7em; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+  .status.done { color: var(--leader); border-color: rgba(63,178,127,.5); }
+  .status.busy { color: var(--candidate); border-color: rgba(224,160,48,.5); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
 
   .data { display: flex; flex-direction: column; gap: .8rem; min-height: 0; overflow: auto; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; }
@@ -59,6 +63,7 @@
   ul.bullets li.shown.past { opacity: .55; }
   body.export ul.bullets li.shown.past { opacity: 1; }
   body.export .hero .start { visibility: hidden; }
+  body.export .status, body.export #btnPresenter { visibility: hidden; }
   ul.bullets li::before { content: "›"; position: absolute; left: 0; color: var(--ae); font-weight: 700; }
   ul.bullets code { font-size: .9em; }
   .rules { margin-top: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .9rem; overflow: auto; }
@@ -125,6 +130,7 @@
     <div class="vizbar">
       <button class="primary" id="btnWrite" title="C">Client write</button>
       <button id="btnPart">Partition</button>
+      <span class="status done" id="status">✓ done</span>
       <span class="spacer"></span>
       <button id="btnReplay" title="R">↺ Replay</button>
       <button id="btnPause" title="P">❚❚</button>
@@ -152,13 +158,15 @@
 
 <footer>
   <div class="progress" id="progress"></div>
-  <span>← → navigate · R replay · P pause · +/− speed · C write · N notes · click server = crash/restart, shift-click = timeout</span>
+  <span>← → navigate · R replay · P pause · +/− speed · C write · N notes · S speaker view · click server = crash/restart, shift-click = timeout</span>
+  <button id="btnPresenter" title="S">Speaker view</button>
 </footer>
 <div class="notes hidden" id="notes"></div>
 
 <script src="raft-sim.js"></script>
 <script src="raft-view.js"></script>
 <script src="slides.js"></script>
+<script src="notes.js"></script>
 <script src="deck.js"></script>
 </body>
 </html>
