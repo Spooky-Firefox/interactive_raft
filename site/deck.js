@@ -19,7 +19,12 @@
 
   const NOTES = window.NOTES || {};
   // The presenter window (presenter.html) follows the deck and sends commands back.
+  // Two transports: direct postMessage to the window we opened (works everywhere,
+  // including Firefox on file://, where every file is its own origin), and a
+  // BroadcastChannel for a speaker view opened by hand on the same site.
   const chan = "BroadcastChannel" in window ? new BroadcastChannel("raft-deck") : null;
+  let presenterWin = null;
+  const seenCmds = new Set();
 
   const listEl = () => $((SLIDES[deck.i].layout === "text") ? "pbullets" : "bullets");
 
@@ -128,7 +133,11 @@
       status: status(), simTime: deck.sim ? deck.sim.now : 0, paused: deck.paused, speed: deck.speed,
     };
   }
-  function publish() { if (chan) chan.postMessage({ type: "state", state: stateForPresenter() }); }
+  function publish() {
+    const msg = { type: "state", state: stateForPresenter() };
+    if (chan) chan.postMessage(msg);
+    if (presenterWin && !presenterWin.closed) { try { presenterWin.postMessage(msg, "*"); } catch (_) { /* window gone */ } }
+  }
 
   function renderBullets() {
     [...listEl().children].forEach((li, k) => {
@@ -223,10 +232,15 @@
   document.addEventListener("keydown", onKey);
 
   function openPresenter() {
-    window.open("presenter.html", "raft-presenter", "width=1200,height=800");
+    const w = window.open("presenter.html", "raft-presenter", "width=1200,height=800");
+    if (w) { presenterWin = w; setTimeout(publish, 300); }
+    else alert("The browser blocked the speaker view window. Allow pop-ups for this page and press S again.");
   }
-  if (chan) chan.onmessage = ({ data }) => {
-    if (data.type !== "cmd") return;
+  // Commands may arrive on both transports; each carries an id so it runs once.
+  function onCmd(data, source) {
+    if (!data || data.type !== "cmd") return;
+    if (data.id) { if (seenCmds.has(data.id)) return; seenCmds.add(data.id); if (seenCmds.size > 200) seenCmds.clear(); }
+    if (source) presenterWin = source; // a reloaded or re-opened speaker view says hello
     switch (data.cmd) {
       case "next": next(); break;
       case "prev": prev(); break;
@@ -236,7 +250,9 @@
       case "hello": break;
     }
     publish();
-  };
+  }
+  if (chan) chan.onmessage = ({ data }) => onCmd(data, null);
+  window.addEventListener("message", e => { if (e.source && e.source !== window) onCmd(e.data, e.source); });
   $("btnPresenter").onclick = e => { openPresenter(); e.target.blur(); };
 
   // The sandbox iframe swallows key presses; forward navigation keys back to the deck.
