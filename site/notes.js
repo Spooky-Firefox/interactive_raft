@@ -12,23 +12,50 @@
       min: 0.5,
       open: "Hi. We are presenting the Raft paper by Ongaro and Ousterhout. Plan: why the paper exists, then we rebuild Raft live, one failure at a time, then how the authors tested it, their results, and what we think.",
     },
-    "Why this paper?": {
-      min: 1.5,
+    "Consensus, and the algorithm everyone used": {
+      min: 1,
       open: "Start with the problem the paper attacks.",
       steps: [
-        "Any database or config store with copies on many machines needs this. Kubernetes stores its state this way.",
-        "Paxos is the classic solution. Even the authors needed almost a year to understand all of it. Point at the Google quote.",
-        "This is the research question. Understandability is unusual as a primary goal in systems research.",
-        "Say the key results now: students did better on Raft, it is formally specified, and it is as fast. We show the details later.",
+        "Consensus: a group of machines that acts as one reliable machine and keeps working when some of them fail. Every replicated database and config store needs this.",
+        "The standard answer was Paxos. Lamport wrote it around 1989, and for the ten years before this paper it was, in the authors' words, almost synonymous with consensus: what courses taught, and what most implementations started from.",
+        "And for good reasons: proven safe, keeps working as long as a majority is up, so five servers survive two failures, and efficient in the normal case.",
+        "The catch is what Paxos is at its core. Single-decree Paxos agrees on one value. For a log you run one instance per entry and glue them together: multi-Paxos. The gluing is where the trouble starts.",
+      ],
+      watch: "The tiles: 1 value vs multi-Paxos.",
+    },
+    "What's wrong with Paxos?": {
+      min: 1.5,
+      open: "The authors see two drawbacks, and the paper is a reaction to both.",
+      steps: [
+        "First, exceptionally hard to understand. Lamport's original is famously opaque. The simplified explanations only cover the single-decree part and are still hard. An informal survey at NSDI 2012 found few people comfortable with it, even experienced researchers. The authors themselves needed almost a year, and only got there by designing their own alternative.",
+        "Their diagnosis is the foundation: two stages with no intuitive explanation that can't be understood independently, and then multi-Paxos adds composition rules with more subtlety on top.",
+        "Second, a poor foundation for real systems. There is no agreed-upon multi-Paxos: Lamport mostly described single-decree and sketched the rest, so details are missing. And the architecture works against you: picking entries independently and merging them adds complexity, and symmetric peers make sense for one decision, but for a series it is simpler and faster to elect a leader first.",
+        "So every implementation starts with Paxos, hits the gaps, and ends up with a significantly different architecture. Slow, error-prone, and the proofs no longer apply to what you built. Google's Chubby team said exactly this. Point at the quote.",
+      ],
+      watch: "The Chubby quote.",
+    },
+    "Understandability as the primary goal": {
+      min: 1,
+      open: "That is the motivation. The research question follows directly from it.",
+      steps: [
+        "Can we define a consensus algorithm for practical systems and describe it so that it is significantly easier to learn than Paxos?",
+        "Not just an algorithm that works. In their words, it had to be obvious why it works, because system builders need those intuitions. Point at the quote.",
+        "Understandability became the test for every design decision: how hard is it to explain, how complex is its state space, does it have subtle implications? They admit this is subjective, which is why they measure it with a user study later.",
+        "Key results up front: 43 students learned both, 33 did better on Raft. Raft is formally specified and proven safe. And it is as efficient as Paxos. We come back to all three.",
       ],
     },
-    "How they designed for understandability": {
+    "How that shaped Raft": {
       min: 1,
+      open: "Two techniques turned that goal into a design.",
       steps: [
-        "Three parts you can learn one at a time: leader election, log replication, safety.",
-        "Examples: one strong leader instead of equal peers, logs that can't have holes, and randomness instead of complicated tie-break rules.",
-        "From here on the simulator does the talking. Every rule we add is from the paper; the sidebar on the right collects them.",
+        "Decomposition. Paxos's two stages can't be understood separately, so Raft splits consensus into pieces that can: leader election, log replication, safety, and membership changes. Point at the three pillars. You can learn each one on its own, and that is how we present it today.",
+        "Reducing the state space: fewer ways for servers to disagree, so fewer cases to think about. Three examples, each a direct answer to Paxos. Point at the table.",
+        "A strong leader: entries only flow from the leader to the followers. Paxos has symmetric peers and only suggests a leader as an optimization.",
+        "Logs without holes, appended in order, and only a few allowed ways for two logs to differ. Paxos picks each slot independently and merges afterwards.",
+        "Randomness where it simplifies: election timeouts are random, choose any, it doesn't matter. They considered ranking candidates instead and dropped it for subtle availability problems.",
+        "That is my part. From here on the simulator does the talking: we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper, and the sidebar on the right collects them.",
       ],
+      watch: "Pillars, then the Paxos / Raft table row by row.",
     },
     "A replicated, deterministic log": {
       min: 1,

@@ -36,33 +36,35 @@
   inset: 5pt,
   table.header([*\#*], [*Slide*], [*Min*], [*Total*]),
   [1], [Raft, one failure at a time], [0:30], [0:30],
-  [2], [Why this paper?], [1:30], [2:00],
-  [3], [How they designed for understandability], [1:00], [3:00],
-  [4], [A replicated, deterministic log], [1:00], [4:00],
-  [5], [Everyone accepts writes], [1:00], [5:00],
-  [6], [Why a majority? #opt], [1:00], [6:00],
-  [7], [Electing a leader, naively], [1:00], [7:00],
-  [8], [Randomized election timeouts], [1:30], [8:30],
-  [9], [Replicating the log, fire-and-forget], [1:00], [9:30],
-  [10], [Say where it goes, acknowledge, retry], [1:30], [11:00],
-  [11], [Applying too early], [1:30], [12:30],
-  [12], [Commit before you apply], [1:30], [14:00],
-  [13], [Catching up a returning server], [1:00], [15:00],
-  [14], [The wrong server wins], [1:30], [16:30],
-  [15], [Vote only for up-to-date logs], [1:30], [18:00],
-  [16], [Two leaders? Network partitions], [1:30], [19:30],
-  [17], [The subtle one (Figure 8) #opt], [1:30], [21:00],
-  [18], [Only count replicas for the current term #opt], [1:00], [22:00],
-  [19], [How the authors evaluated Raft], [1:00], [23:00],
-  [20], [Students understood Raft better], [1:30], [24:30],
-  [21], [Correctness: specified, (mostly) proven], [1:00], [25:30],
-  [22], [Leader election is fast, with randomness], [1:00], [26:30],
-  [23], [What the authors conclude], [1:00], [27:30],
-  [24], [The user study], [1:30], [29:00],
-  [25], [Correctness and performance], [1:30], [30:30],
-  [26], [Our takeaways], [1:30], [32:00],
-  [27], [That's Raft], [1:00], [33:00],
-  [28], [Sandbox], [2:00], [35:00],
+  [2], [Consensus, and the algorithm everyone used], [1:00], [1:30],
+  [3], [What's wrong with Paxos?], [1:30], [3:00],
+  [4], [Understandability as the primary goal], [1:00], [4:00],
+  [5], [How that shaped Raft], [1:00], [5:00],
+  [6], [A replicated, deterministic log], [1:00], [6:00],
+  [7], [Everyone accepts writes], [1:00], [7:00],
+  [8], [Why a majority? #opt], [1:00], [8:00],
+  [9], [Electing a leader, naively], [1:00], [9:00],
+  [10], [Randomized election timeouts], [1:30], [10:30],
+  [11], [Replicating the log, fire-and-forget], [1:00], [11:30],
+  [12], [Say where it goes, acknowledge, retry], [1:30], [13:00],
+  [13], [Applying too early], [1:30], [14:30],
+  [14], [Commit before you apply], [1:30], [16:00],
+  [15], [Catching up a returning server], [1:00], [17:00],
+  [16], [The wrong server wins], [1:30], [18:30],
+  [17], [Vote only for up-to-date logs], [1:30], [20:00],
+  [18], [Two leaders? Network partitions], [1:30], [21:30],
+  [19], [The subtle one (Figure 8) #opt], [1:30], [23:00],
+  [20], [Only count replicas for the current term #opt], [1:00], [24:00],
+  [21], [How the authors evaluated Raft], [1:00], [25:00],
+  [22], [Students understood Raft better], [1:30], [26:30],
+  [23], [Correctness: specified, (mostly) proven], [1:00], [27:30],
+  [24], [Leader election is fast, with randomness], [1:00], [28:30],
+  [25], [What the authors conclude], [1:00], [29:30],
+  [26], [The user study], [1:30], [31:00],
+  [27], [Correctness and performance], [1:30], [32:30],
+  [28], [Our takeaways], [1:30], [34:00],
+  [29], [That's Raft], [1:00], [35:00],
+  [30], [Sandbox], [2:00], [37:00],
 )
 Optional slides can be skipped to save about 3:30 min.
 
@@ -75,30 +77,67 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Plan: why the paper exists, then we rebuild Raft live one failure at a time, then how the authors evaluated it, results, and our critique.]
 
-== 2. Why this paper?
+== 2. Consensus, and the algorithm everyone used
 
-#meta[Introduction · Introduction · about 1:30 min]
+#meta[Introduction · Introduction · about 1:00 min]
 
 #opening[Start with the problem the paper attacks.]
 
-#click(1)[Replicated systems keep copies of data on many machines, which must agree on every change. That is consensus.][Any database or config store with copies on many machines needs this. Kubernetes stores its state this way.]
-#click(2)[For decades the answer was Paxos: proven correct, but notoriously hard to understand and hard to build on.][Paxos is the classic solution. Even the authors needed almost a year to understand all of it. Point at the Google quote.]
-#click(3)[Research question: can we design a consensus algorithm whose primary goal is understandability?][This is the research question. Understandability is unusual as a primary goal in systems research.]
-#click(4)[Their answer is Raft. Students learned it better than Paxos, it is formally specified, and it performs as well.][Say the key results now: students did better on Raft, it is formally specified, and it is as fast. We show the details later.]
+#click(1)[Consensus: a group of machines acts as one reliable machine and keeps working when some of them fail.][Consensus: a group of machines that acts as one reliable machine and keeps working when some of them fail. Every replicated database and config store needs this.]
+#click(2)[For a decade the answer was Paxos: what courses taught, and the starting point of most implementations.][The standard answer was Paxos. Lamport wrote it around 1989, and for the ten years before this paper it was, in the authors' words, almost synonymous with consensus: what courses taught, and what most implementations started from.]
+#click(3)[With good reason: proven safe, available while a majority is up, efficient in the normal case.][And for good reasons: proven safe, keeps working as long as a majority is up, so five servers survive two failures, and efficient in the normal case.]
+#click(4)[The catch: its core agrees on one value. A log needs many instances glued together: multi-Paxos.][The catch is what Paxos is at its core. Single-decree Paxos agrees on one value. For a log you run one instance per entry and glue them together: multi-Paxos. The gluing is where the trouble starts.]
 
-#background[Key results up front (the tips ask for this). The quote is from Google's Chubby team, cited in the paper as \[4\].]
+#watch[The tiles: 1 value vs multi-Paxos.]
 
-== 3. How they designed for understandability
+#background[Section 1 and the first paragraph of Section 3. The dates are from the paper's references \[15\] and \[16\]; VR and Zab are from Section 10.]
+
+== 3. What's wrong with Paxos?
+
+#meta[Introduction · Introduction · about 1:30 min]
+
+#opening[The authors see two drawbacks, and the paper is a reaction to both.]
+
+#click(1)[Exceptionally hard to understand. The original is opaque; the simplified explanations cover only single-decree Paxos, and are still hard.][First, exceptionally hard to understand. Lamport's original is famously opaque. The simplified explanations only cover the single-decree part and are still hard. An informal survey at NSDI 2012 found few people comfortable with it, even experienced researchers. The authors themselves needed almost a year, and only got there by designing their own alternative.]
+#click(2)[Diagnosis: the single-decree foundation. Two stages with no intuitive explanation that can't be understood separately, then composition rules on top.][Their diagnosis is the foundation: two stages with no intuitive explanation that can't be understood independently, and then multi-Paxos adds composition rules with more subtlety on top.]
+#click(3)[A poor foundation for real systems. There is no agreed-upon multi-Paxos: Lamport sketched it and many details are missing.][Second, a poor foundation for real systems. There is no agreed-upon multi-Paxos: Lamport mostly described single-decree and sketched the rest, so details are missing. And the architecture works against you: picking entries independently and merging them adds complexity, and symmetric peers make sense for one decision, but for a series it is simpler and faster to elect a leader first.]
+#click(4)[So every implementation starts with Paxos, hits the gaps, and ends up with a different, unproven architecture.][So every implementation starts with Paxos, hits the gaps, and ends up with a significantly different architecture. Slow, error-prone, and the proofs no longer apply to what you built. Google's Chubby team said exactly this. Point at the quote.]
+
+#watch[The Chubby quote.]
+
+#background[Section 3. The architecture points: choosing entries independently then merging adds complexity; symmetric peers make sense for one decision, but for a series it is simpler to elect a leader first.]
+
+== 4. Understandability as the primary goal
+
+#meta[Introduction · Introduction · about 1:00 min]
+
+#opening[That is the motivation. The research question follows directly from it.]
+
+#click(1)[Research question: can we define a consensus algorithm for practical systems and describe it so that it is significantly easier to learn than Paxos?][Can we define a consensus algorithm for practical systems and describe it so that it is significantly easier to learn than Paxos?]
+#click(2)[Not just an algorithm that works: it should be obvious why it works.][Not just an algorithm that works. In their words, it had to be obvious why it works, because system builders need those intuitions. Point at the quote.]
+#click(3)[Every design decision was judged by how hard it is to explain. The authors admit this is subjective, so they measure it later.][Understandability became the test for every design decision: how hard is it to explain, how complex is its state space, does it have subtle implications? They admit this is subjective, which is why they measure it with a user study later.]
+#click(4)[Key results: 33 of 43 students did better on Raft; Raft is formally specified and proven safe; it is as efficient as Paxos.][Key results up front: 43 students learned both, 33 did better on Raft. Raft is formally specified and proven safe. And it is as efficient as Paxos. We come back to all three.]
+
+#background[Sections 1 and 4. Key results up front (the tips ask for this); the details come in Results.]
+
+== 5. How that shaped Raft
 
 #meta[Methods · design · Methods · about 1:00 min]
 
-#click(1)[Decomposition: split consensus into three mostly independent problems.][Three parts you can learn one at a time: leader election, log replication, safety.]
-#click(2)[Shrink the state space: fewer ways for servers to disagree, fewer cases to reason about.][Examples: one strong leader instead of equal peers, logs that can't have holes, and randomness instead of complicated tie-break rules.]
-#click(3)[Next we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper.][From here on the simulator does the talking. Every rule we add is from the paper; the sidebar on the right collects them.]
+#opening[Two techniques turned that goal into a design.]
 
-#background[This is the artifact part of the paper (Sections 3–5). The live demo is our way of presenting it.]
+#click(1)[Decomposition: Paxos's stages can't be understood separately, so Raft splits consensus into pieces that can.][Decomposition. Paxos's two stages can't be understood separately, so Raft splits consensus into pieces that can: leader election, log replication, safety, and membership changes. Point at the three pillars. You can learn each one on its own, and that is how we present it today.]
+#click(2)[Shrink the state space: fewer ways for servers to disagree, fewer cases to reason about. Three answers to Paxos:][Reducing the state space: fewer ways for servers to disagree, so fewer cases to think about. Three examples, each a direct answer to Paxos. Point at the table.]
+#click(3)[A strong leader: log entries only flow from the leader to the followers.][A strong leader: entries only flow from the leader to the followers. Paxos has symmetric peers and only suggests a leader as an optimization.]
+#click(4)[Logs without holes, appended in order, with only a few allowed ways for two logs to differ.][Logs without holes, appended in order, and only a few allowed ways for two logs to differ. Paxos picks each slot independently and merges afterwards.]
+#click(5)[Randomness where it simplifies: random election timeouts, chosen over ranking the candidates.][Randomness where it simplifies: election timeouts are random, choose any, it doesn't matter. They considered ranking candidates instead and dropped it for subtle availability problems.]
+#click(6)[Next we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper.][That is my part. From here on the simulator does the talking: we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper, and the sidebar on the right collects them.]
 
-== 4. A replicated, deterministic log
+#watch[Pillars, then the Paxos \/ Raft table row by row.]
+
+#background[Section 4, plus Section 1's list of novel features and Section 5.2 for the rejected ranking scheme (it had subtle availability issues). The live demo is our way of presenting Sections 5–8.]
+
+== 6. A replicated, deterministic log
 
 #meta[Methods · the artifact, rebuilt live · The goal · about 1:00 min]
 
@@ -113,7 +152,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Deterministic is the key word: if the input sequence is identical, the output is identical. So the whole problem reduces to agreeing on the log.]
 
-== 5. Everyone accepts writes
+== 7. Everyone accepts writes
 
 #meta[Methods · the artifact, rebuilt live · Problem · about 1:00 min]
 
@@ -128,7 +167,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Point at the left servers vs the right servers: left got A first, right got B first. Nobody did anything wrong. We need someone to decide the order.]
 
-== 6. Why a majority? #opt
+== 8. Why a majority? #opt
 
 #meta[Methods · the artifact, rebuilt live · Background · about 1:00 min]
 
@@ -141,7 +180,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Blue majority S1–S3, orange majority S3–S5: they always share someone. This overlap argument is behind every safety rule later.]
 
-== 7. Electing a leader, naively
+== 9. Electing a leader, naively
 
 #meta[Methods · the artifact, rebuilt live · Problem · about 1:00 min]
 
@@ -156,7 +195,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Watch the term number climb on every server while nobody wins. Each candidate already voted for itself, so it rejects everyone else.]
 
-== 8. Randomized election timeouts
+== 10. Randomized election timeouts
 
 #meta[Methods · the artifact, rebuilt live · Fix · about 1:30 min]
 
@@ -171,7 +210,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Ring around each follower \= its timer. Heartbeats refill it. You can click servers yourself here.]
 
-== 9. Replicating the log, fire-and-forget
+== 11. Replicating the log, fire-and-forget
 
 #meta[Methods · the artifact, rebuilt live · Problem · about 1:00 min]
 
@@ -186,7 +225,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[S3 missed the 2nd write, S5 the 3rd. Their later entries are at the wrong index.]
 
-== 10. Say where it goes, acknowledge, retry
+== 12. Say where it goes, acknowledge, retry
 
 #meta[Methods · the artifact, rebuilt live · Fix · about 1:30 min]
 
@@ -201,7 +240,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Same message losses as the previous slide. The heartbeat doubles as the retry timer.]
 
-== 11. Applying too early
+== 13. Applying too early
 
 #meta[Methods · the artifact, rebuilt live · Problem · about 1:30 min]
 
@@ -217,7 +256,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[The receipts panel shows what the client believes happened. The struck-out one is a broken promise.]
 
-== 12. Commit before you apply
+== 14. Commit before you apply
 
 #meta[Methods · the artifact, rebuilt live · Fix · about 1:30 min]
 
@@ -232,7 +271,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Uncommitted entries are drawn faded and dashed. Majority storage means any future leader will have it (we'll need one more rule for that).]
 
-== 13. Catching up a returning server
+== 15. Catching up a returning server
 
 #meta[Methods · the artifact, rebuilt live · Demo · about 1:00 min]
 
@@ -248,7 +287,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Watch the yellow underline in S4's row walk left. Real implementations skip back faster using a hint from the follower.]
 
-== 14. The wrong server wins
+== 16. The wrong server wins
 
 #meta[Methods · the artifact, rebuilt live · Problem · about 1:30 min]
 
@@ -263,7 +302,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Committed meant 'on a majority', but the new leader wasn't part of that majority. Committed data must never be lost.]
 
-== 15. Vote only for up-to-date logs
+== 17. Vote only for up-to-date logs
 
 #meta[Methods · the artifact, rebuilt live · Fix · about 1:30 min]
 
@@ -279,7 +318,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[This is the 'election restriction' from §5.4.1 of the paper. S4\/S5 keep timing out and bumping the term, which can delay the election; the 4th step nudges S2's timer (shift-click works too).]
 
-== 16. Two leaders? Network partitions
+== 18. Two leaders? Network partitions
 
 #meta[Methods · the artifact, rebuilt live · Demo · about 1:30 min]
 
@@ -294,7 +333,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Two crowns at once is fine: only one of them can ever commit. Terms tell everyone which leader is current.]
 
-== 17. The subtle one (Figure 8) #opt
+== 19. The subtle one (Figure 8) #opt
 
 #meta[Methods · the artifact, rebuilt live · Bonus problem · about 1:30 min]
 
@@ -307,7 +346,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Figure 8 in the paper. Counting replicas is not enough for entries from an older term.]
 
-== 18. Only count replicas for the current term #opt
+== 20. Only count replicas for the current term #opt
 
 #meta[Methods · the artifact, rebuilt live · Bonus fix · about 1:00 min]
 
@@ -320,7 +359,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Older entries get committed indirectly, via the log matching property.]
 
-== 19. How the authors evaluated Raft
+== 21. How the authors evaluated Raft
 
 #meta[Methods · evaluation · Methods · about 1:00 min]
 
@@ -332,7 +371,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Section 9 of the paper. Note the study was designed to favor Paxos where it could: 15 of 43 had prior Paxos experience, and the Paxos video was 14% longer.]
 
-== 20. Students understood Raft better
+== 22. Students understood Raft better
 
 #meta[Results · Results · about 1:30 min]
 
@@ -347,7 +386,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[The 12.5-point model prediction is higher than the observed 4.9 because many students had prior Paxos experience, which helped Paxos more. Survey: 33 of 41 said Raft would be easier to implement and explain.]
 
-== 21. Correctness: specified, (mostly) proven
+== 23. Correctness: specified, (mostly) proven
 
 #meta[Results · Results · about 1:00 min]
 
@@ -362,7 +401,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Section 9.2. The paper's example of an unchecked invariant: they have not proven the type safety of the specification.]
 
-== 22. Leader election is fast, with randomness
+== 24. Leader election is fast, with randomness
 
 #meta[Results · Results · about 1:00 min]
 
@@ -372,7 +411,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Section 9.3, Figure 16. The leader was crashed at a random point within its heartbeat interval.]
 
-== 23. What the authors conclude
+== 25. What the authors conclude
 
 #meta[Discussion · Discussion · about 1:00 min]
 
@@ -384,7 +423,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Keep this slide strictly to the authors' claims. Our own discussion follows.]
 
-== 24. The user study
+== 26. The user study
 
 #meta[Discussion · Discussion · about 1:30 min]
 
@@ -398,7 +437,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Wording matters here: the paper says participants may have been biased by knowledge of the hypothesis. It does not say they were told it.]
 
-== 25. Correctness and performance
+== 27. Correctness and performance
 
 #meta[Discussion · Discussion · about 1:30 min]
 
@@ -411,7 +450,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[These are the group's points from the written review.]
 
-== 26. Our takeaways
+== 28. Our takeaways
 
 #meta[Discussion · Our reflections · about 1:30 min]
 
@@ -423,7 +462,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Make clear these are our opinions, not the paper's.]
 
-== 27. That's Raft
+== 29. That's Raft
 
 #meta[Summary · Recap · about 1:00 min]
 
@@ -431,7 +470,7 @@ Optional slides can be skipped to save about 3:30 min.
 
 #background[Point at how each rule came from a failure we saw. Mention the parts we skipped.]
 
-== 28. Sandbox
+== 30. Sandbox
 
 #meta[Questions · Try it · about 2:00 min]
 

@@ -64,15 +64,31 @@
   // Figures for the paper (IMRAD) slides. Every number is from raft.pdf. ------
   const tile = (num, lbl, cls = "") => `<div class="tile ${cls}"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
   const FIG = {
-    intro: `<blockquote class="quote">“There are significant gaps between the description of the Paxos algorithm and the needs of a real-world system… the final system will be based on an unproven protocol.”
+    paxos: `<div class="tiles">
+        ${tile("1989", "Lamport writes <i>The Part-Time Parliament</i>; it is published in 1998, <i>Paxos Made Simple</i> follows in 2001")}
+        ${tile("10 years", "“almost synonymous with consensus”: taught in courses, the starting point of most implementations")}
+        ${tile("1 value", "<b>single-decree Paxos</b> agrees on one decision, in two stages")}
+        ${tile("multi-Paxos", "one instance per log entry, composed into a log")}
+      </div>
+      <div class="src">Relatives from the same era: Viewstamped Replication (Oki &amp; Liskov, 1988) and ZooKeeper's Zab. Paxos still set the terms of the discussion.</div>`,
+    wrong: `<blockquote class="quote">“There are significant gaps between the description of the Paxos algorithm and the needs of a real-world system… the final system will be based on an unproven protocol.”
         <footer>Chandra et al., <i>Paxos Made Live</i> (Google, 2007), quoted in the paper</footer></blockquote>
-      <div class="src">The authors themselves needed “almost a year” to understand the full Paxos protocol.</div>`,
+      <div class="src">The authors themselves needed “almost a year” to understand the full protocol, and an informal survey at NSDI 2012 found few researchers comfortable with it.</div>`,
+    goal: `<blockquote class="quote">“It was important not just for the algorithm to work, but for it to be obvious why it works.”
+        <footer>Ongaro &amp; Ousterhout, Section 1</footer></blockquote>
+      <div class="src">The test applied to every design choice (Section 4): how hard is each alternative to explain? How complex is its state space? Does it have subtle implications?</div>`,
     design: `<div class="pillars">
         <div class="pillar" style="--c:var(--candidate)"><b>Leader election</b>Pick one leader; detect when it fails.</div>
         <div class="pillar" style="--c:var(--ae)"><b>Log replication</b>The leader copies its log to everyone.</div>
         <div class="pillar" style="--c:var(--leader)"><b>Safety</b>Committed entries are never lost or changed.</div>
       </div>
-      <div class="src">+ a smaller state space: a strong leader, logs without holes, randomness instead of tie-break rules.</div>`,
+      <table class="contrast">
+        <tr><th>In Paxos</th><th>In Raft</th></tr>
+        <tr><td>Symmetric peers; a leader only as an optimization</td><td><b>Strong leader</b>: entries flow only from the leader</td></tr>
+        <tr><td>Each log slot decided independently, then merged</td><td><b>No holes</b>: entries appended in order, few ways to differ</td></tr>
+        <tr><td>(considered: rank the candidates)</td><td><b>Random timeouts</b>: “choose any; it doesn't matter”</td></tr>
+      </table>
+      <div class="src">Plus a fourth piece, membership changes, which we skip today.</div>`,
     evaluation: `<div class="tiles">
         ${tile("43", "students at Stanford and U.C. Berkeley: video lectures and quizzes on Raft and Paxos")}
         ${tile("TLA+", "formal specification of Raft, plus proofs")}
@@ -144,28 +160,57 @@
       layout: "text",
       section: "Introduction",
       kicker: "Introduction",
-      title: "Why this paper?",
-      figure: FIG.intro,
+      title: "Consensus, and the algorithm everyone used",
+      figure: FIG.paxos,
       frags: [
-        { text: "Replicated systems keep copies of data on many machines, which must <b>agree</b> on every change. That is <b>consensus</b>." },
-        { text: "For decades the answer was <b>Paxos</b>: proven correct, but notoriously hard to understand and hard to build on." },
-        { text: "Research question: can we design a consensus algorithm whose <b>primary goal is understandability</b>?" },
-        { text: "Their answer is <b>Raft</b>. Students learned it better than Paxos, it is formally specified, and it performs as well." },
+        { text: "<b>Consensus</b>: a group of machines acts as one reliable machine and keeps working when some of them fail." },
+        { text: "For a decade the answer was <b>Paxos</b>: what courses taught, and the starting point of most implementations." },
+        { text: "With good reason: proven safe, available while a <b>majority</b> is up, efficient in the normal case." },
+        { text: "The catch: its core agrees on <b>one value</b>. A log needs many instances glued together: <b>multi-Paxos</b>." },
       ],
-      notes: "Key results up front (the tips ask for this). The quote is from Google's Chubby team, cited in the paper as [4].",
+      notes: "Section 1 and the first paragraph of Section 3. The dates are from the paper's references [15] and [16]; VR and Zab are from Section 10.",
+    },
+    {
+      layout: "text",
+      kicker: "Introduction",
+      title: "What's wrong with Paxos?",
+      figure: FIG.wrong,
+      frags: [
+        { text: "<b>Exceptionally hard to understand.</b> The original is opaque; the simplified explanations cover only single-decree Paxos, and are still hard." },
+        { text: "Diagnosis: the <b>single-decree foundation</b>. Two stages with no intuitive explanation that can't be understood separately, then composition rules on top." },
+        { text: "<b>A poor foundation for real systems.</b> There is no agreed-upon multi-Paxos: Lamport sketched it and many details are missing." },
+        { text: "So every implementation starts with Paxos, hits the gaps, and ends up with a <b>different, unproven</b> architecture." },
+      ],
+      notes: "Section 3. The architecture points: choosing entries independently then merging adds complexity; symmetric peers make sense for one decision, but for a series it is simpler to elect a leader first.",
+    },
+    {
+      layout: "text",
+      kicker: "Introduction",
+      title: "Understandability as the primary goal",
+      figure: FIG.goal,
+      frags: [
+        { text: "Research question: can we define a consensus algorithm for practical systems and describe it so that it is <b>significantly easier to learn</b> than Paxos?" },
+        { text: "Not just an algorithm that works: it should be <b>obvious why</b> it works." },
+        { text: "Every design decision was judged by <b>how hard it is to explain</b>. The authors admit this is subjective, so they measure it later." },
+        { text: "Key results: <b>33 of 43</b> students did better on Raft; Raft is formally specified and proven safe; it is <b>as efficient</b> as Paxos." },
+      ],
+      notes: "Sections 1 and 4. Key results up front (the tips ask for this); the details come in Results.",
     },
     {
       layout: "text",
       section: "Methods · design",
       kicker: "Methods",
-      title: "How they designed for understandability",
+      title: "How that shaped Raft",
       figure: FIG.design,
       frags: [
-        { text: "<b>Decomposition</b>: split consensus into three mostly independent problems." },
-        { text: "<b>Shrink the state space</b>: fewer ways for servers to disagree, fewer cases to reason about." },
+        { text: "<b>Decomposition</b>: Paxos's stages can't be understood separately, so Raft splits consensus into pieces that can." },
+        { text: "<b>Shrink the state space</b>: fewer ways for servers to disagree, fewer cases to reason about. Three answers to Paxos:" },
+        { text: "A <b>strong leader</b>: log entries only flow from the leader to the followers." },
+        { text: "<b>Logs without holes</b>, appended in order, with only a few allowed ways for two logs to differ." },
+        { text: "<b>Randomness</b> where it simplifies: random election timeouts, chosen over ranking the candidates." },
         { text: "Next we rebuild Raft from nothing, one failure at a time. Every rule we add is from the paper." },
       ],
-      notes: "This is the artifact part of the paper (Sections 3–5). The live demo is our way of presenting it.",
+      notes: "Section 4, plus Section 1's list of novel features and Section 5.2 for the rejected ranking scheme (it had subtle availability issues). The live demo is our way of presenting Sections 5–8.",
     },
     {
       section: "Methods · the artifact, rebuilt live",

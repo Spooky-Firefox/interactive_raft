@@ -17,8 +17,8 @@ rules collect in a "Rules so far" sidebar.
 
 | Section | Slides |
 |---|---|
-| Introduction | Why this paper? (Paxos is hard; research question; key results up front) |
-| Methods: design | Decomposition and state-space reduction |
+| Introduction | Consensus and Paxos → what's wrong with Paxos → understandability as the goal (key results up front) |
+| Methods: design | How that shaped Raft: decomposition, state-space reduction (Paxos vs Raft) |
 | Methods: the artifact, rebuilt live | Replicated log → everyone writes → *why a majority* → split votes → randomized timeouts → lossy replication → prev-entry check and retries → applying too early → commit → catch-up → wrong server wins → election restriction → partitions → *Figure 8 bonus* |
 | Methods: evaluation | User study, TLA+ proofs, election timing |
 | Results | User study (25.7 vs 20.8 of 60), correctness, election performance |
@@ -44,6 +44,7 @@ deck also shows a small "running / ✓ done" chip next to the demo controls.
 **Speaker notes:** written in `site/notes.js` (one line per click). `node tools/export-notes.js`
 turns them into `notes/speaker-notes.typ`; compile with `typst compile notes/speaker-notes.typ`
 for the printable `notes/speaker-notes.pdf`.
+The spoken script for the Introduction (slides 1–5) is also kept as prose in `notes/intro-manuscript.txt`.
 
 **PDF for Canvas:** `node tools/export-pdf.js` writes `export/slides.pdf`, one page
 per slide, each fully revealed, with the demos played to their outcome.
